@@ -1,10 +1,8 @@
-import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import  InputLayer, Dense, Flatten, Dropout, Lambda, Reshape
+from tensorflow.keras.layers import  InputLayer, Dense, Flatten, Reshape
 from tensorflow.keras import backend as K
-from sklearn.utils import shuffle
-import time
+from tensorflow.python.keras import regularizers
 tf.config.run_functions_eagerly(False)
 tf.keras.backend.set_floatx('float64')
 class Ivis(Model):
@@ -14,11 +12,15 @@ class Ivis(Model):
     def __init__(self,
                  verbose=True,
                  encoder=True,
-                 recoder=True):                 
+                 recoder=True,
+                 ivis_weight=5,
+                 recoder_weight=1):                 
         super(Ivis, self).__init__()
         if (type(self) == Ivis):
             assert encoder and recoder, "Base Ivis model needs to have both decoder and encoder!"
         self.verbose = verbose
+        self.ivis_weight = ivis_weight
+        self.recoder_weight=recoder_weight
         self._build_layers(encoder, recoder)
         self.compile(
             optimizer="adam",
@@ -63,11 +65,15 @@ class Ivis(Model):
         recoder_loss = (Ivis.recoder_loss(inputs[0],
                                   recoded,
                                   distance=Ivis.distance_s))
-        self.add_loss(ivis_loss + recoder_loss)
+        self.add_loss(self.ivis_weight * ivis_loss
+                    + self.recoder_weight * recoder_loss)
         return out_0, out_1, out_2, recoded
 
     def encoder_out(self,
                     input_layer):
+        """
+        Call through encoder layers.
+        """
         
         x = input_layer
         for layer in self.encoder_layers:
@@ -75,6 +81,9 @@ class Ivis(Model):
         return x
     def recoder_out(self,
                     input_layer):
+        """
+        Call through recoder layers.
+        """
         x = input_layer
         for layer in self.recoder_layers:
             x = layer(x)
@@ -92,6 +101,9 @@ class Ivis(Model):
                 positive,
                 negative,
                 distance=None):
+        """
+        Return loss for ivis encoder.
+        """
         if (distance == None): distance = Ivis.distance
         anchor_positive_distance = distance(anchor, positive)
         anchor_negative_distance = distance(anchor, negative)
@@ -110,7 +122,13 @@ class Ivis(Model):
         return IvisEncoder(self)
     def get_recoder(self):
         return IvisRecoder(self)
+
 class IvisEncoder(Ivis):
+    """
+    Model made from ivis model -> only encodes images.
+    Input as into original ivis model. (None, 28, 28)
+    Output 2D dimensionaly reduced data. (None, 2)
+    """
     def __init__(self, original_model):
         super(IvisEncoder, self).__init__(encoder=True,
                                         recoder=False)
@@ -121,6 +139,11 @@ class IvisEncoder(Ivis):
         return self.encoder_out(inputs)
 
 class IvisRecoder(Ivis):
+    """
+    Model made from ivis model -> only recodes from 2D data.
+    Input is 2D vector. (None, 2)
+    Output is image as original input into ivis (None, 28, 28)
+    """
     def __init__(self, original_model):
         super(IvisRecoder, self).__init__(encoder=False,
                                         recoder=True)

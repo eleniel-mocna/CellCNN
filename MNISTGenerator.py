@@ -1,13 +1,14 @@
 import os
-
-from tensorflow.python.ops.ragged.segment_id_ops import row_splits_to_segment_ids
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 import tensorflow as tf
 import numpy as np
 from ivis import Ivis
 import os
 import matplotlib.pyplot as plt
 class MNISTGenerator(object):
+    """
+    Class handling data from MNIST (original / splits for ivis / dimensionaly reduced)
+    """
     TEMP_FOLDER = "temp"
     X_TRAIN_PATH = TEMP_FOLDER + "/x_train.npy"
     X_TEST_PATH = TEMP_FOLDER + "/x_test.npy"
@@ -18,7 +19,11 @@ class MNISTGenerator(object):
     TEST_POSITIVE_PATH = TEMP_FOLDER + "/test_positive.npy"
     TEST_NEGATIVE_PATH = TEMP_FOLDER + "/test_negative.npy"
     PATHS = [X_TRAIN_PATH, X_TEST_PATH, Y_TRAIN_PATH, Y_TEST_PATH, TRAIN_POSITIVE_PATH,
-             TRAIN_NEGATIVE_PATH, TEST_POSITIVE_PATH, TEST_NEGATIVE_PATH] #This is ugly :-(
+             TRAIN_NEGATIVE_PATH, TEST_POSITIVE_PATH, TEST_NEGATIVE_PATH] #TODO: This is ugly :-(
+    _2D_DATA_PATH = TEMP_FOLDER + "/2D_data.npy"
+    _2D_LABELS_PATH = TEMP_FOLDER + "/2D_labels.npy"
+    _2D_IMAGE_PATH = TEMP_FOLDER + "/2D_data.png" 
+    _2D_SCATTER_PATH = TEMP_FOLDER + "/2D_scatter.png" 
     def __init__(self,
                  save_to_cache=True,
                  load_from_cache=True,
@@ -37,11 +42,13 @@ class MNISTGenerator(object):
             If data is newly generated, should it be saved to cache?
         """
         if (load_from_cache and self._cache_exists()):
+            if self.verbose: print("Data is cached, loading data from HD.")
             self._load_data()
         else:
-            if (self.verbose):
-                self._generate_data()
+            if (self.verbose): print("Generating data...")
+            self._generate_data()
             if (save_to_cache):
+                if self.verbose: print("Saving data...")
                 self.save_data()
     def _generate_data(self):
         """Generate new data by downloading it and then splitting.
@@ -73,6 +80,7 @@ class MNISTGenerator(object):
     def save_data(self):
         """Save data to cache, which can be then loaded back
         by `self._load_data`.
+        TODO: This is 1.3 GB of data. Maybe saving the original and info for recreating would be better.
         """
         if (not os.path.exists(MNISTGenerator.TEMP_FOLDER)): os.mkdir(MNISTGenerator.TEMP_FOLDER)
         # TODO: Create folder, if it doesnt exist.
@@ -92,6 +100,9 @@ class MNISTGenerator(object):
                 if (self.verbose): print(f"File \"{path}\" does not exist.")
     @staticmethod
     def generate_positive_negative(x, y):
+        """
+        Return negative and positive ivis splits for given data (x) and labels (y)
+        """
         positive = np.zeros(shape=x.shape)
         negative = np.zeros(shape=x.shape)
         for i in range(x.shape[0]):
@@ -103,6 +114,9 @@ class MNISTGenerator(object):
             negative[i,:,:,:]=x[pos,:,:,:]
         return negative, positive
     def _cache_exists(self):
+        """
+        Check if cache exists on disk.
+        """
         for path in MNISTGenerator.PATHS:
             if os.path.exists(path):
                 pass
@@ -112,7 +126,7 @@ class MNISTGenerator(object):
         return True
     def train_model(self,
                 batch_size=256, 
-                epochs=1,
+                epochs=10,
                 validation_split=0.2,
                 shuffle=True,
                 build_encoder=True,
@@ -122,17 +136,83 @@ class MNISTGenerator(object):
                 epochs=epochs,
                 validation_split=validation_split,
                 shuffle=shuffle)
-        self.build_encoder()
-        self.build_recoder()
+        if build_encoder: self.build_encoder()
+        if build_recoder: self.build_recoder()
     def build_encoder(self):
         self.encoder = self.model.get_encoder()
     def build_recoder(self):
         self.recoder = self.model.get_recoder()
-    def get_2D_mnist(self):
-        return self.encoder.predict(self.x_train)
+    def get_2D_mnist(self,
+                     load=True,
+                     save=True):
+        """
+        Returns: (Data, labels)
+        """
+        if (load and os.path.exists(MNISTGenerator._2D_DATA_PATH)
+                and os.path.exists(MNISTGenerator._2D_LABELS_PATH)):
+            return np.load(MNISTGenerator._2D_DATA_PATH)    
+        self.x = self.encoder.predict(self.x_train)
+        self.y = self.y_train
+        if save:
+            np.save(MNISTGenerator._2D_DATA_PATH, self.x)
+            np.save(MNISTGenerator._2D_LABELS_PATH, self.y)
+        return self.x,self.y
+    def scatter_2D_mnist(self,
+                        show=True,
+                        save=True):
+        if hasattr(self, "x") and hasattr(self, "y"):
+            pass
+        else:
+            self.get_2D_mnist(False, False)
+        plt.scatter(self.x[:,0], self.x[:,1], c=self.y)
+        if save: plt.savefig(MNISTGenerator._2D_SCATTER_PATH)
+        if show: plt.show()        
+    @staticmethod
+    def load_2D_mnist(generate_on_fail=True):
+        """
+        Load pregenerated dimensionally reduced mnist data, or:
+            if (generate_on_fail): generate them.
+        Returns: (Data, labels)
+        """
+        if os.path.exists(MNISTGenerator._2D_DATA_PATH) and os.path.exists(MNISTGenerator._2D_LABELS_PATH):
+            x = np.load(MNISTGenerator._2D_DATA_PATH)
+            y = np.load(MNISTGenerator._2D_LABELS_PATH)
+            return x,y
+        if generate_on_fail:
+            print("Pregenerated 2D mnist data does not exist. Generating new data...")
+            mg = MNISTGenerator()
+            mg.train_model()
+            mg.show_encoded_plane(show=False, save_to_file=True)
+            return mg.get_2D_mnist()
+
+
+    def load_weights(path):
+        raise NotImplementedError("TODO...")
     def show_encoded_plane(self,
                         columns=15*2+1,
-                        rows=20*2+1):
+                        rows=20*2+1,
+                        show=True,
+                        save_to_file=True):
+        """
+        Show/Save 2D plane of MNIST numbers as encoded and decoded by the IVIS model.
+
+        Arguments
+        ---------
+        columns : int
+            Number of columns around 0 (middle column is at x=0)
+            (columns-1)//2 is the right most coordinate
+            should be odd
+        rows : int
+            Number of rows around 0 (middle row is at y=0)
+            (columns-1)//2 is the right most coordinate
+            should be odd
+        show : bool
+            Should the graph be shown to screen?
+        save_to_file : bool
+            Should the graph be saved to file?
+        """
+        if (self.verbose):
+            print ("Generating plane of numbers")
         column_offset = columns//2
         row_offset = rows//2
         graph = np.zeros((columns*rows, 28, 28))
@@ -146,18 +226,17 @@ class MNISTGenerator(object):
                     target[i*columns + j] = model.predict(np.array((tensor,)))
 
         def show_graph(data):
-        # Show graph from given from
             fig = plt.figure(figsize=(15.,15.))
             for i in range(1, columns*rows + 1):
                 img = data[i-1]
                 fig.add_subplot(rows, columns, i)
                 plt.imshow(img, cmap=plt.cm.binary)
                 plt.axis("off")
-            plt.show()
+            if save_to_file: plt.savefig(MNISTGenerator._2D_IMAGE_PATH)
+            if show: plt.show()
         generate_graph(graph, self.recoder)
         show_graph(graph)        
 
 
-mg = MNISTGenerator()
-mg.train_model()
-mg.show_encoded_plane()
+if __name__ == "__main__":
+    print(MNISTGenerator.load_2D_mnist())
