@@ -16,3 +16,4 @@
 ## Current bugs/problems
 
 - Often during training gradients disapear. Running model multiple times solves this issue.
+- Temporary file isn't in Temporary folder.
