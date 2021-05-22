@@ -1,11 +1,11 @@
 import tensorflow as tf
-from InputData import MNISTInputData
-from CellCNN import CellCNN, SCellCNN
-from Dataset import DatasetSplit
+from MNISTClasses import MNISTInputData
+from CellCNN.Models import CellCNN, SCellCNN
+from CellCNN.Dataset import DatasetSplit
 def main():    
     MULTI_CELL_SIZE = 1500
-    ODDS = [(5, ), (-1,),] # If you don't want to exclude any numbers, just set ODDS[i] to (-1,)
-    CHANCES = [20, 0] # how many procent of images in ODD classes should be skipped
+    ODDS = [(3, ), (-1,),] # If you don't want to exclude any numbers, just set ODDS[i] to (-1,)
+    CHANCES = [80, 0] # how many procent of images in ODD classes should be skipped
     # -> CHANCE = 100 -> very easy, CHANCE = 0 -> impossible
     inp = MNISTInputData(ODDS, CHANCES, MULTI_CELL_SIZE)
     # inp.plot()
@@ -15,7 +15,9 @@ def main():
     # X_test, Y_test = inp.get_multi_cell_inputs(1000, DatasetSplit.TEST)
     X_eval, Y_eval = inp.get_multi_cell_inputs(1000, DatasetSplit.VALIDATION)
 
-    model = CellCNN(conv=[32, 16, 6],n_classes=inp.length)
+    model = CellCNN(conv=[32, 16],
+                    n_classes=inp.length,
+                    lr=0.01)
 
     model.fit(X_train, Y_train, epochs=20, validation_data=(X_eval, Y_eval),
             callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=7, restore_best_weights=True),])

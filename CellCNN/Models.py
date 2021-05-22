@@ -7,14 +7,15 @@ from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 from tensorflow.keras import regularizers
 
-#TODO: Add masking (if y_true==-1 -> do not count this towards loss/accuracy)
+#TODO: Bugfix masking.
 
 class CellCNN(Model):
     def __init__(self,
                  n_classes = 2,
                  conv = [16,],
                  k=25,
-                 lr=0.01):
+                 lr=0.01,
+                 activation="relu"):
         """
         Build CellCNN model
 
@@ -34,7 +35,7 @@ class CellCNN(Model):
                 self.my_layers.append(
                                     Conv1D(filters=conv[i],
                                         kernel_size=1,
-                                        activation="swish",
+                                        activation=activation,
                                         )
                                     )            
         self.my_layers.append(Lambda(self._select_top,
@@ -54,7 +55,7 @@ class CellCNN(Model):
 
         
         self.compile(
-                optimizer=keras.optimizers.Adam(lr=lr),
+                optimizer=keras.optimizers.Adam(learning_rate=lr),
                 loss=loss_fn,
                 metrics=[CellCNN.masked_accuracy,
                         'accuracy',

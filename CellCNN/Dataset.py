@@ -25,7 +25,7 @@ def plot_datasets(list_of_datasets, list_of_styles=("g.", "r.", "b.")):
                alpha=0.5)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
-
+# TODO: Make an abstract class for dataset and these "example datasets" just inherit from it.
 
 class Dataset:
     def __init__(self,
@@ -157,7 +157,7 @@ class Dataset:
                 )
         return ret
 
-class MNISTDataset(Dataset):
+class DataDataset(Dataset):
     def __init__(self,
                     data,
                     dimension = 2,                
@@ -167,8 +167,6 @@ class MNISTDataset(Dataset):
                     offsetY = 0
                 ):
         """
-        Generate an elipse dataset for learning with ratio of
-        `center_density` points in the middle from total `amount` points
 
         Arguments
         ---------
