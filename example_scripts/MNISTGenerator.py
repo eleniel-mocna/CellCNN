@@ -150,7 +150,7 @@ class MNISTGenerator(object):
         """
         if (load and os.path.exists(MNISTGenerator._2D_DATA_PATH)
                 and os.path.exists(MNISTGenerator._2D_LABELS_PATH)):
-            return np.load(MNISTGenerator._2D_DATA_PATH)    
+            return np.load(MNISTGenerator._2D_DATA_PATH), np.load(MNISTGenerator._2D_LABELS_PATH)  
         self.x = self.encoder.predict(self.x_train)
         self.y = self.y_train
         if save:
@@ -168,22 +168,24 @@ class MNISTGenerator(object):
         if save: plt.savefig(MNISTGenerator._2D_SCATTER_PATH)
         if show: plt.show()        
     @staticmethod
-    def load_2D_mnist(generate_on_fail=True):
+    def load_2D_mnist(load_from_hd=True, generate_on_fail=True):
         """
         Load pregenerated dimensionally reduced mnist data, or:
             if (generate_on_fail): generate them.
         Returns: (Data, labels)
         """
-        if os.path.exists(MNISTGenerator._2D_DATA_PATH) and os.path.exists(MNISTGenerator._2D_LABELS_PATH):
+        if os.path.exists(MNISTGenerator._2D_DATA_PATH) and os.path.exists(MNISTGenerator._2D_LABELS_PATH) and load_from_hd:
             x = np.load(MNISTGenerator._2D_DATA_PATH)
             y = np.load(MNISTGenerator._2D_LABELS_PATH)
             return x,y
         if generate_on_fail:
-            print("Pregenerated 2D mnist data does not exist. Generating new data...")
+            print("Generating new data...")
             mg = MNISTGenerator()
             mg.train_model()
-            mg.show_encoded_plane(show=False, save_to_file=True)
+            mg.scatter_2D_mnist()
+            mg.show_encoded_plane(show=True, save_to_file=True)
             return mg.get_2D_mnist()
+        raise ValueError("Mnist data has not been generated nor loaded!")
 
 
     def load_weights(path):
@@ -194,6 +196,7 @@ class MNISTGenerator(object):
                         show=True,
                         save_to_file=True):
         """
+        BUG: If show==False plot is left hanging and then overwrites next plot.
         Show/Save 2D plane of MNIST numbers as encoded and decoded by the IVIS model.
 
         Arguments

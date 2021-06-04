@@ -110,7 +110,11 @@ class Ivis(Model):
         positive_negative_distance = distance(positive, negative)
         minimum_distance = K.min(K.concatenate([anchor_negative_distance, positive_negative_distance]), axis=1, keepdims=True)
         return K.mean(K.maximum(anchor_positive_distance-minimum_distance+10.,0))
-
+    @staticmethod
+    def ivis_distance_loss(encoded, # This was supposed to normalize encoded data. Doesn't work.
+                            distance=None):
+        if (distance == None): distance = Ivis.distance
+        return K.maximum(distance(encoded, tf.constant((0.,0.),dtype="float64")), 10.) - 1.
     @staticmethod
     def recoder_loss(original,
                      recoded,

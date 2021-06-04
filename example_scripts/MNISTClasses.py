@@ -42,6 +42,7 @@ class MNISTInputData(InputData):
     def __init__(self,
                  odds,
                  chances,
+                 load_from_hd=True,
                  multi_cell_size=1500):
         """Prepare mnist data for cellCNN analysis
 
@@ -62,7 +63,7 @@ class MNISTInputData(InputData):
         """
         datas = []
         labels = []
-        x,y = MNISTGenerator.load_2D_mnist()
+        x,y = MNISTGenerator.load_2D_mnist(load_from_hd=load_from_hd)
         for j in range(len(odds)):
             this_data = np.zeros((x.shape[0], 2))
             this_labels = np.zeros((x.shape[0]))
