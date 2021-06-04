@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
@@ -5,12 +6,12 @@ import tensorflow as tf
 from tensorflow.keras.layers import Conv1D, Dense, Lambda
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
-from tensorflow.keras import regularizers
 
 #TODO: Bugfix masking.
 
 class CellCNN(Model):
     def __init__(self,
+                 input_shape,
                  n_classes = 2,
                  conv = [16,],
                  k=25,
@@ -27,8 +28,12 @@ class CellCNN(Model):
                 number of pooled convolutional outputs after last conv layer
         """
         super(CellCNN, self).__init__()
+        self.my_input_shape=input_shape
         self.n_classes = n_classes
+        self.conv = conv
         self.k = k
+        self.lr = lr
+        self.activation = activation
         self.my_layers = []
         for i in range(len(conv)): # TODO: this is awful
             if conv[i] != 0:
@@ -61,8 +66,11 @@ class CellCNN(Model):
                         'accuracy',
                         CellCNN.binary_accuracy
                         ]
-                    )
-    
+                    )    
+        self.build(self.my_input_shape)
+    def init_random(self, data):
+        labels = tf.keras.utils.to_categorical(np.random.randint(low=nlabels,size=data.shape[0], dtype='l'))
+        
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5): # From original implementation
         if threshold != 0.5:
@@ -89,8 +97,7 @@ class CellCNN(Model):
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
         ret= (K.sum(K.cast(K.equal(mask*y_true, K.round(mask*y_pred)),K.floatx()))-nb_mask)/nb_unmask
-        return ret
-    
+        return ret    
     def call(self, inputs):
         x = inputs
         for layer in self.my_layers:
@@ -160,6 +167,33 @@ class CellCNN(Model):
     def _select_top(self, tensor,):
         """Return tensor containing mean of k largest numbers for given tensor"""
         return K.mean(tf.sort(tensor, axis=1)[:, -self.k:, :], axis=1)
+    def get_config(self):
+        self.__init__
+        return {"input_shape" : self.my_input_shape,
+                "n_classes": self.n_classes,
+                "conv": self.conv,
+                "k": self.k,
+                "lr": self.lr,
+                "activation" :self.activation}
+    def save(self, config_file, weights_file):
+        json_config = self.get_config()
+        with open(config_file, 'w') as file:
+            json.dump(json_config, file)
+        self.save_weights(weights_file)
+    @staticmethod
+    def load(config_file, weights_file):
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+            model = CellCNN(input_shape=config["input_shape"],
+                            n_classes=config["n_classes"],
+                            conv=config["conv"],
+                            k=config["k"],
+                            lr=config["lr"],
+                            activation=config["activation"])
+        model.build(config["input_shape"])
+        model.load_weights(weights_file)
+        return model    
+
 
 class SCellCNN(CellCNN):
     def __init__(self, original_model):
@@ -183,9 +217,6 @@ class SCellCNN(CellCNN):
                 pass
         self.build((None,2))
         for i in range(len(self.my_layers)):
-            # print(self.my_layers[i].weights)
-            # print(my_weights[i])
-            # print("----")
             self.my_layers[i].set_weights(my_weights[i])
     def call(self,inputs):
         x = inputs
