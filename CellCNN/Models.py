@@ -68,9 +68,6 @@ class CellCNN(Model):
                         ]
                     )    
         self.build(self.my_input_shape)
-    def init_random(self, data):
-        labels = tf.keras.utils.to_categorical(np.random.randint(low=nlabels,size=data.shape[0], dtype='l'))
-        
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5): # From original implementation
         if threshold != 0.5:
