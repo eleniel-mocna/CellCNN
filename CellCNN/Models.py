@@ -5,6 +5,7 @@ from tensorflow import keras
 import tensorflow as tf
 from tensorflow.keras.layers import Conv1D, Dense, Lambda
 from tensorflow.keras.models import Model
+from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
 
 #TODO: Bugfix masking.
@@ -54,8 +55,8 @@ class CellCNN(Model):
             loss_fn = tf.keras.losses.binary_crossentropy
             # loss_fn = CellCNN.binary_masked_loss
         else:
-            self.my_layers.append(Dense(n_classes, activation="softmax"))
-            loss_fn = tf.keras.losses.sparse_categorical_crossentropy
+            self.my_layers.append(Dense(n_classes, activation="linear"))
+            loss_fn = tf.keras.losses.mean_squared_error
             # loss_fn = CellCNN.sparse_categorical_masked_loss
 
         
@@ -99,8 +100,7 @@ class CellCNN(Model):
         x = inputs
         for layer in self.my_layers:
             x = layer(x)      
-
-        return x
+        return x        
     def show_scatter_analysis(self,
                               data,
                               relu=True,
@@ -212,7 +212,7 @@ class SCellCNN(CellCNN):
                                       activation=layer.activation))
             else:
                 pass
-        self.build((None,2))
+        self.build((None,original_model.my_input_shape[-1]))
         for i in range(len(self.my_layers)):
             self.my_layers[i].set_weights(my_weights[i])
     def call(self,inputs):

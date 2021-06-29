@@ -160,7 +160,7 @@ class Dataset:
 class DataDataset(Dataset):
     def __init__(self,
                     data,
-                    dimension = 2,                
+                    dimension = None,                
                     test_split = 0.1,
                     validation_split = 0.1,
                     offsetX = 0,
@@ -181,7 +181,10 @@ class DataDataset(Dataset):
         """
         self.data = data
         self.amount = data.shape[0]
-        self.dimension = dimension
+        if dimension==None:
+            self.dimension = data.shape[1]
+        else:
+            self.dimension=dimension
         self.offsetX = offsetX
         self.offsetY = offsetY
         self._shuffle_data()
