@@ -1,8 +1,11 @@
 import sys
 import numpy as np
-from CellCNN.Dataset import Dataset
+from os.path import dirname, realpath, sep, pardir
+import sys
+sys.path.insert(0, dirname(realpath(__name__)) + sep + pardir + sep + "CellCNN")
+from Dataset import Dataset
 from MNISTGenerator import MNISTGenerator
-from CellCNN.InputData import InputData
+from InputData import InputData
 from random import randint
 
 class MNISTDataset(Dataset):

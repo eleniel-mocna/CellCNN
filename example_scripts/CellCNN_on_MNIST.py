@@ -1,7 +1,12 @@
+# This ensures that CellCNN directory is where the imports are taken from
+from os.path import dirname, realpath, sep, pardir
+import sys
+sys.path.insert(0, dirname(realpath(__name__)) + sep + pardir + sep + "CellCNN")
+
 import tensorflow as tf
 from MNISTClasses import MNISTInputData
-from CellCNN.Models import CellCNN, SCellCNN
-from CellCNN.Dataset import DatasetSplit
+from Models import CellCNN, SCellCNN
+from Dataset import DatasetSplit
 def main():    
     MULTI_CELL_SIZE = 1500
     ODDS = [(3, ), (-1,),] # If you don't want to exclude any numbers, just set ODDS[i] to (-1,)
