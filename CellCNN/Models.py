@@ -165,7 +165,6 @@ class CellCNN(Model):
         """Return tensor containing mean of k largest numbers for given tensor"""
         return K.mean(tf.sort(tensor, axis=1)[:, -self.k:, :], axis=1)
     def get_config(self):
-        self.__init__
         return {"input_shape" : self.my_input_shape,
                 "n_classes": self.n_classes,
                 "conv": self.conv,
@@ -221,25 +220,27 @@ class SCellCNN(CellCNN):
             x = i(x)
             
         return x
-    def show_importance(self, data, scale=False):
+    def show_importance(self, data, scale=False, filters=None, dimensions=(0,1)):
         def value_to_color(x):
             if (x >= 0.5):
                 return [(x-0.5)*2,0,0]
             else:
                 return[0,0,1-(2*x)]
-            
+
         values = self.predict(data)
+        if filters is None:
+            filters = list(range(values.shape[-1]))
         for i in range(values.shape[-1]):
-            current_values = values[:,i]
-            if (scale):
-                print("MIN:", np.min(current_values))
-                print("MAX:", np.max(current_values))
-                current_values -= np.min(current_values)
-                current_values *= 1/np.max(current_values)
-            fig = plt.scatter(data[:,0], data[:,1], c=[value_to_color(v) for v in current_values])
-            plt.suptitle(f"Filter {i}.")
-            plt.gca().set_aspect('equal', adjustable='box')
-            plt.show()
+            if i in filters:
+                current_values = values[:,i]
+                if (scale):
+                    print("MIN:", np.min(current_values))
+                    print("MAX:", np.max(current_values))
+                    current_values -= np.min(current_values)
+                    current_values *= 1/np.max(current_values)
+                fig = plt.scatter(data[:,dimensions[0]], data[:,dimensions[1]], c=[value_to_color(v) for v in current_values])
+                plt.suptitle(f"Filter {i}, dimensions {dimensions}.")
+                plt.show()
 # FN = 2000
 # single_model = SCellCNN(model)
 # data = datasets[0].data[:FN]

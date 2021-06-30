@@ -17,21 +17,26 @@ CATEGORICAL = ["Pacient_._Kontrola",
                 "Od_koho",
                 "sex",
                 "Subjective_evaluation_of_the_physitian"]
-NUMERICAL = ["Age",
-            "Age_of_onset",
+# NUMERICAL = ["Age",
+#             "Age_of_onset",
+#             "Length_of_the_disease",
+#             "Age_at_diagnosis",
+#             "Years_on_Ig_treatment",
+#             "Dg_Delay",
+#             "IgG_at_Dg",
+#             "IgA_at_Dg",
+#             "IgM_at_Dg",
+#             "obins_hvs5",
+#             "ubins_hvs5",
+#             "ubins1",
+#             "ubins2"]
+NUMERICAL = [
             "Length_of_the_disease",
-            "Age_at_diagnosis",
-            "Years_on_Ig_treatment",
-            "Dg_Delay",
             "IgG_at_Dg",
             "IgA_at_Dg",
             "IgM_at_Dg",
-            "cl_namestab",
             "obins_hvs5",
-            "ubins_hvs5",
-            "ubins1",
-            "ubins2",
-            "cls"]
+            "ubins_hvs5"]
 
 import tensorflow as tf
 import pandas as pd
@@ -58,12 +63,14 @@ for i in range(len(summary)):
 
 labels = np.array(labels)
 inp = InputData(data, labels=labels)
-X,Y = inp.get_multi_cell_inputs(5000, DatasetSplit.TRAIN)
-Xt,Yt = inp.get_multi_cell_inputs(1000, DatasetSplit.TEST)
+X,Y = inp.get_multi_cell_inputs(25000, DatasetSplit.TRAIN)
+Xt,Yt = inp.get_multi_cell_inputs(5000, DatasetSplit.TEST)
 
-model = CellCNN((None, 1000, 20), 15)
-callb = model.fit(X,Y, epochs=10, validation_data=(Xt,Yt))
-plt.plot(callb.history["loss"])
+model = CellCNN((None, 1000, 20), len(NUMERICAL), conv=[16,],)
+callb = model.fit(X,Y, epochs=5, validation_data=(Xt,Yt))
+plt.plot(callb.history["val_loss"])
 plt.show()
 s = model.get_single_cell_model()
-s.show_importance(X[0], scale=True) # This shows values only for first 2 dimensions!
+for i in range(20):
+    for j in range(i+1, 20):
+        s.show_importance(X[0], scale=True, filters = (1,), dimensions = (i,j)) # This shows values only for first 2 dimensions!
