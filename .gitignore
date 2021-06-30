@@ -5,6 +5,7 @@
 
 # Temporary cache files
 */temp
+csv
 
 # User-specific files
 *.rsuser
@@ -12,6 +13,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+C
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
