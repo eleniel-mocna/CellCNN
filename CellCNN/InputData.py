@@ -1,7 +1,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from CellCNN.Dataset import DatasetSplit, Dataset
+from Dataset import DatasetSplit, Dataset
 
 RNG = np.random.default_rng(211)
 
@@ -9,18 +9,25 @@ class InputData:
     def __init__(
         self,
         datasets,
-        multi_cell_size,      
+        multi_cell_size=1000,
+        labels=None
                 ):
         """
         Arguments
         ---------
         datasets : list/tuple of datasets
-        Datasets, from which the data is taken.
+            Datasets, from which the data is taken.
+        labels : 2D numpy array 
+            Labels for individual datasets (or their numbers when empty)
         multi_cell_size : int
-        How many values should be in one multi-cell input.
-
-        #TODO: Add train/test/validation splitting.
+            How many values should be in one multi-cell input.
         """
+        if labels is None:
+            self.labels = np.arange(len(datasets))
+            self.labels = np.expand_dims(self.labels, -1)
+        else:
+            self.labels = labels
+        
         self.datasets = datasets
         self.multi_cell_size = multi_cell_size
         self._check_datasets()
@@ -50,9 +57,11 @@ class InputData:
             Labels (Y).
         """
         retX = np.ndarray((amount, self.multi_cell_size, self.dimension))
-        retY = RNG.integers(0,self.length, size=(amount, 1), dtype="int8")
+        retY = np.ndarray((amount, self.labels[0].shape[0]))
+        indices = RNG.integers(0,self.length, size=(amount), dtype="int8")
         for i in range(amount):
-            retX[i] = self.datasets[retY[i, 0]].get_multi_cell_input(self.multi_cell_size, split_type)     
+            retX[i] = self.datasets[indices[i]].get_multi_cell_input(self.multi_cell_size)
+            retY[i] = self.labels[indices[i]]
         return (retX, retY)
             
     def plot(self, amount=5000, 

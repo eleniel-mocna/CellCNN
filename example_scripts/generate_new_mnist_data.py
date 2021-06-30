@@ -1,4 +1,8 @@
-from os import truncate
+# This ensures that CellCNN directory is where the imports are taken from
+from os.path import dirname, realpath, sep, pardir
+import sys
+sys.path.insert(0, dirname(realpath(__name__)) + sep + pardir + sep + "CellCNN")
+
 from MNISTGenerator import MNISTGenerator
 def main():    
     gen = MNISTGenerator(load_from_cache=True)
