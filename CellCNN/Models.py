@@ -34,13 +34,19 @@ class CellCNN(Model):
         self.k = k
         self.lr = lr
         self.activation = activation
+        self._build_layers()
+        self._compile()            
+        self.build(self.my_input_shape)
+    def _build_layers(self):
+        """Build layers for arguments given in __init__()
+        """
         self.my_layers = []
-        for i in range(len(conv)): # TODO: this is awful
-            if conv[i] != 0:
+        for i in range(len(self.conv)):
+            if self.conv[i] != 0:
                 self.my_layers.append(
-                                    Conv1D(filters=conv[i],
+                                    Conv1D(filters=self.conv[i],
                                         kernel_size=1,
-                                        activation=activation,
+                                        activation=self.activation,
                                         )
                                     )            
         self.my_layers.append(Lambda(self._select_top,
@@ -48,26 +54,41 @@ class CellCNN(Model):
                                     name="pooling"
                                     )
                             )
-        assert n_classes > 1, "There must be at least 2 classes for classifier!"
-        if n_classes == 2:
+    def _compile(self):
+        assert self.n_classes > 1, "There must be at least 2 classes for classifier!"
+        if self.n_classes == 2:
             self.my_layers.append(Dense(1, activation="sigmoid"))
             loss_fn = tf.keras.losses.binary_crossentropy
             # loss_fn = CellCNN.binary_masked_loss
         else:
-            self.my_layers.append(Dense(n_classes, activation="softmax"))
+            self.my_layers.append(Dense(self.n_classes, activation="softmax"))
             loss_fn = tf.keras.losses.sparse_categorical_crossentropy
             # loss_fn = CellCNN.sparse_categorical_masked_loss
-
-        
         self.compile(
-                optimizer=keras.optimizers.Adam(learning_rate=lr),
+                optimizer=keras.optimizers.Adam(learning_rate=self.lr),
                 loss=loss_fn,
                 metrics=[CellCNN.masked_accuracy,
                         'accuracy',
                         CellCNN.binary_accuracy
                         ]
-                    )    
-        self.build(self.my_input_shape)
+                    )
+    def init_random(self,
+                    data,
+                    labels=None,
+                    n_classes=10,
+                    epochs=10,
+                    batch_size=256):
+        init_model = InitCellCNN.load_from_dict(self.get_config(), n_classes)
+        if labels is None: labels = np.random.randint(low=n_classes,size=data.shape[0], dtype='l') # Does this work?
+
+        init_model.fit(data, labels, batch_size=batch_size, epochs=epochs)
+        for i in range(len(init_model.my_layers)-1):
+            init_layer = init_model.my_layers[i]            
+            this_layer = self.my_layers[i]
+            weights, bias = init_layer.get_weights()
+            weights = np.expand_dims(weights, 0)
+            this_layer.set_weights((weights, bias))
+
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5): # From original implementation
         if threshold != 0.5:
@@ -178,20 +199,22 @@ class CellCNN(Model):
             json.dump(json_config, file)
         self.save_weights(weights_file)
     @staticmethod
-    def load(config_file, weights_file):
+    def load(config_file, weights_file=None):
         with open(config_file, 'r') as file:
             config = json.load(file)
-            model = CellCNN(input_shape=config["input_shape"],
+            model = CellCNN.load_from_dict(config)
+        model.build(config["input_shape"])
+        if weights_file:
+            model.load_weights(weights_file)
+        return model
+    @staticmethod
+    def load_from_dict(config):
+        return CellCNN(input_shape=config["input_shape"],
                             n_classes=config["n_classes"],
                             conv=config["conv"],
                             k=config["k"],
                             lr=config["lr"],
                             activation=config["activation"])
-        model.build(config["input_shape"])
-        model.load_weights(weights_file)
-        return model    
-
-
 class SCellCNN(CellCNN):
     def __init__(self, original_model):
         super(CellCNN, self).__init__()
@@ -240,8 +263,22 @@ class SCellCNN(CellCNN):
             plt.suptitle(f"Filter {i}.")
             plt.gca().set_aspect('equal', adjustable='box')
             plt.show()
-# FN = 2000
-# single_model = SCellCNN(model)
-# data = datasets[0].data[:FN]
-# single_model.show_importance(data, scale=False)
-# #values = single_model.predict(negative.data[:FN])
+class InitCellCNN(CellCNN):
+    def _build_layers(self):
+        self.my_layers = []
+        for i in range(len(self.conv)):
+            if self.conv[i] != 0:
+                self.my_layers.append(
+                                    Dense(self.conv[i],
+                                        activation=self.activation,
+                                        )
+                                    )            
+    @staticmethod
+    def load_from_dict(config, n_classes):
+        return InitCellCNN(input_shape=(None, config["input_shape"][2]),
+                            n_classes=n_classes,
+                            conv=config["conv"],
+                            k=config["k"],
+                            lr=config["lr"],
+                            activation=config["activation"])
+    

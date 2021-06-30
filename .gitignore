@@ -6,6 +6,9 @@
 # Temporary cache files
 */temp
 
+# Python enviroment
+CellCNN_env/
+
 # User-specific files
 *.rsuser
 *.suo
