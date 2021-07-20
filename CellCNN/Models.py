@@ -37,7 +37,7 @@ class CellCNN(Model):
         self.activation = activation
         self._build_layers()
         self._compile()            
-        self.build(self.my_input_shape)
+        self.build(tuple(self.my_input_shape))
     def _build_layers(self):
         """Build layers for arguments given in __init__()
         """

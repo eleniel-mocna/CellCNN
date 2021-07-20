@@ -164,7 +164,8 @@ class DataDataset(Dataset):
                     test_split = 0.1,
                     validation_split = 0.1,
                     offsetX = 0,
-                    offsetY = 0
+                    offsetY = 0,
+                    shuffle = True,
                 ):
         """
 
@@ -187,6 +188,6 @@ class DataDataset(Dataset):
             self.dimension=dimension
         self.offsetX = offsetX
         self.offsetY = offsetY
-        self._shuffle_data()
+        if shuffle: self._shuffle_data()
         self.train_data, self.test_data, self.validation_data = self._split_data(
                                                     test_split, validation_split)
