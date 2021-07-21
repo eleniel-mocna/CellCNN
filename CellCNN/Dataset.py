@@ -174,7 +174,7 @@ class DataDataset(Dataset):
         data : np.array
             given data
         dimension : int
-            dimension of data
+            dimension of data (or None for automatic detection)
         test_split : float
             fraction of data saved for testing
         validation_split : float
@@ -182,7 +182,7 @@ class DataDataset(Dataset):
         """
         self.data = data
         self.amount = data.shape[0]
-        if dimension==None:
+        if dimension is None:
             self.dimension = data.shape[1]
         else:
             self.dimension=dimension

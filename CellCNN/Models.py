@@ -282,4 +282,4 @@ class InitCellCNN(CellCNN):
                             k=config["k"],
                             lr=config["lr"],
                             activation=config["activation"])
-    
+                            
