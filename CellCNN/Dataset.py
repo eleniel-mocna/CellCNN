@@ -27,20 +27,21 @@ def plot_datasets(list_of_datasets, list_of_styles=("g.", "r.", "b.")):
     plt.show()
 # TODO: Make an abstract class for dataset and these "example datasets" just inherit from it.
 
+
 class Dataset:
     def __init__(self,
-                amount,
-                dimension=2,
-                center_density=0.1,
-                radius=1,
-                center_scatter=0.5,
-                center_radius=0.1,
-                outer_scatter=0.3,
-                test_split=0.2,
-                validation_split=0.2,
-                offsetX=1,
-                offsetY=1
-                   ):
+                 amount,
+                 dimension=2,
+                 center_density=0.1,
+                 radius=1,
+                 center_scatter=0.5,
+                 center_radius=0.1,
+                 outer_scatter=0.3,
+                 test_split=0.2,
+                 validation_split=0.2,
+                 offsetX=1,
+                 offsetY=1
+                 ):
         """
         Generate an elipse dataset for learning with ratio of
         `center_density` points in the middle from total `amount` points
@@ -78,7 +79,7 @@ class Dataset:
 
         self._generate_data()
         self.train_data, self.test_data, self.validation_data = self._split_data(
-                                                    test_split, validation_split)
+            test_split, validation_split)
 
     def plot_data(self, style='b.', show=True, verbose=1):
         """ Create a plot showing this data. """
@@ -117,56 +118,59 @@ class Dataset:
         self._generate_inner_circle()
         self._generate_outer_circle()
         self._shuffle_data()
-        self.data[:,0]+= self.offsetX
-        self.data[:,1]+= self.offsetY
+        self.data[:, 0] += self.offsetX
+        self.data[:, 1] += self.offsetY
 
     def _generate_inner_circle(self):
-        #Generate inner circle (Call only in 2D constructor)    
+        #Generate inner circle (Call only in 2D constructor)
         inner_index_end = int(self.amount * self.center_density)
 
         self.data[:inner_index_end] = self._generate_circle(
-                                        self.center_radius,
-                                        self.center_scatter,
-                                        inner_index_end
-                                                            )  
+            self.center_radius,
+            self.center_scatter,
+            inner_index_end
+        )
         self.data[:inner_index_end] += 0.1
+
     def _generate_outer_circle(self):
         #Generate outer circle (Call only in 2D constructor)
         start_index = int(self.amount * self.center_density) + 1
         length = self.amount - start_index
         self.data[start_index:] = self._generate_circle(self.radius,
-                                                self.outer_scatter,
-                                                length)
+                                                        self.outer_scatter,
+                                                        length)
+
     def _shuffle_data(self):
-        RNG.shuffle(self.data)  
+        RNG.shuffle(self.data)
 
     def _generate_circle(self, radius, scatter, amount):
         """ Return a ring with given values and `amount` points. """
         if self.dimension != 2:
             raise DimensionError("Not able to generate circle in 2 dimensions")
         ret = np.ndarray((amount, self.dimension))
-        theta = np.linspace(0,2*np.pi, amount)
-        ret[:,0] = radius * np.cos(theta)
-        ret[:,1] = radius * np.sin(theta)
+        theta = np.linspace(0, 2*np.pi, amount)
+        ret[:, 0] = radius * np.cos(theta)
+        ret[:, 1] = radius * np.sin(theta)
         ret += (scatter
-                * (RNG.normal(loc = 0.0,
-                                    scale = scatter,
-                                    size = (amount,2)
-                                    )
-                )
+                * (RNG.normal(loc=0.0,
+                              scale=scatter,
+                              size=(amount, 2)
+                              )
+                   )
                 )
         return ret
 
+
 class DataDataset(Dataset):
     def __init__(self,
-                    data,
-                    dimension = None,                
-                    test_split = 0.1,
-                    validation_split = 0.1,
-                    offsetX = 0,
-                    offsetY = 0,
-                    shuffle = True,
-                ):
+                 data,
+                 dimension=None,
+                 test_split=0.1,
+                 validation_split=0.1,
+                 offsetX=0,
+                 offsetY=0,
+                 shuffle=True,
+                 ):
         """
 
         Arguments
@@ -185,9 +189,10 @@ class DataDataset(Dataset):
         if dimension is None:
             self.dimension = data.shape[1]
         else:
-            self.dimension=dimension
+            self.dimension = dimension
         self.offsetX = offsetX
         self.offsetY = offsetY
-        if shuffle: self._shuffle_data()
+        if shuffle:
+            self._shuffle_data()
         self.train_data, self.test_data, self.validation_data = self._split_data(
-                                                    test_split, validation_split)
+            test_split, validation_split)
