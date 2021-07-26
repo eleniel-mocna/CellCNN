@@ -244,7 +244,7 @@ class SCellCNN(CellCNN):
         self.my_layers = []
         self.n_classes = original_model.n_classes
         my_weights = []
-        for layer in original_model.layers:
+        for layer in original_model.layers[:-1]:
             if type(layer) == Conv1D:
                 weights = layer.get_weights()[0][0]
                 bias = layer.get_weights()[1]
