@@ -105,10 +105,9 @@ def labels_from_labels_sheet(sheet):
 
 
 def Datasets_from_data(data):
-    data = np.array(data)
     ret = []
     for datum in data:
-        ret.append(DataDataset(datum))
+        ret.append(DataDataset(datum, shuffle=False))
     return ret
 
 
