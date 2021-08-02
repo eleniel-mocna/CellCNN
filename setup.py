@@ -1,19 +1,11 @@
-from setuptools import setup, find_packages
-
-def get_readme():
-    with open('README.md') as f:
-        return f.read()
+from setuptools import setup
 
 setup(
     name='CellCNN',
-    version='0.1',
+    version='0.2',
     description='CNN for sensitive detection in multicell data',
-    long_description=get_readme(),
-    classifiers=[
-      'Programming Language :: Python :: 3.7',
-    ],
     url='https://github.com/eleniel-mocna/CellCNN',
-    include_package_data=True,
+    install_requires=["tensorflow","matplotlib", "numpy", "pandas"],
     zip_safe=False,
-    packages=find_packages(),
+    packages=['CellCNN'],
 )

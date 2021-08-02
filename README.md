@@ -11,7 +11,7 @@
 
 (On Windows, Unix/MacOS is similar)
 
-- In root of this repository run: `pip install -r requirements.txt`
+- In root of this repository run: `pip install -r requirements.txt --use-feature=in-tree-build`
 
 ## Current bugs/problems
 

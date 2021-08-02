@@ -49,10 +49,11 @@ def get_summary_file()->pd.DataFrame:
     summary[CATEGORICAL] = summary[CATEGORICAL].astype("category")
     summary[NUMERICAL] = summary[NUMERICAL].apply(pd.to_numeric, errors="coerce")
     return summary
-
+print("Getting summary")
 summary = get_summary_file()
 data = []
 labels = []
+print("reading data")
 for i in range(len(summary)):
     code = summary.loc[i, CODE_NAME]
     for file_name in glob.glob(CSV_FOLDER+code+"*.csv"):
@@ -60,13 +61,13 @@ for i in range(len(summary)):
         data.append(DataDataset(panda.to_numpy())) # Ignore cell numbering
         panda_label = summary.loc[i, NUMERICAL]
         labels.append(panda_label.to_numpy())
-
+print("Generating inputs")
 labels = np.array(labels)
 inp = InputData(data, labels=labels)
-X,Y = inp.get_multi_cell_inputs(25000, DatasetSplit.TRAIN)
-Xt,Yt = inp.get_multi_cell_inputs(5000, DatasetSplit.TEST)
-
-model = CellCNN((None, 1000, 20), len(NUMERICAL), conv=[16,],)
+X,Y = inp.get_multi_cell_inputs(2500, DatasetSplit.TRAIN)
+Xt,Yt = inp.get_multi_cell_inputs(500, DatasetSplit.TEST)
+print("Doing stuff with Model")
+model = CellCNN((None, 1000, 20), [len(NUMERICAL),], conv=[16,],)
 callb = model.fit(X,Y, epochs=5, validation_data=(Xt,Yt))
 plt.plot(callb.history["val_loss"])
 plt.show()

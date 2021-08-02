@@ -1,4 +1,5 @@
 import json
+from os import name
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
@@ -7,6 +8,7 @@ from tensorflow.keras.layers import Conv1D, Dense, Lambda
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
+from tensorflow.python.keras.engine import training
 
 #TODO: Bugfix masking.
 
@@ -14,7 +16,7 @@ import tensorflow.keras.backend as K
 class CellCNN(Model):
     def __init__(self,
                  input_shape,
-                 n_classes=2,
+                 classes=[2, ],
                  conv=[16, ],
                  k=25,
                  lr=0.01,
@@ -24,6 +26,11 @@ class CellCNN(Model):
 
         Arguments
         ---------
+            classes : list of ints
+                list describing labels:
+                    0  : metric value
+                    2  : binary classification
+                    n>2: n-nary classification
             conv : list of ints
                 list of filter sizes of convolutional layers
             k : int
@@ -31,7 +38,7 @@ class CellCNN(Model):
         """
         super(CellCNN, self).__init__()
         self.my_input_shape = input_shape
-        self.n_classes = n_classes
+        self.classes = classes
         self.conv = conv
         self.k = k
         self.lr = lr
@@ -43,6 +50,10 @@ class CellCNN(Model):
     def _build_layers(self):
         """Build layers for arguments given in __init__()
         """
+        self._build_filter_layers()
+        self._build_output_layers()
+
+    def _build_filter_layers(self):
         self.my_layers = []
         for i in range(len(self.conv)):
             if self.conv[i] != 0:
@@ -58,24 +69,69 @@ class CellCNN(Model):
                                      )
                               )
 
+    def _build_output_layers(self):
+        self.output_layers = []
+        self.loss_functions = []
+
+        k = 1
+        for i in self.classes:
+            layer_name = "output_" + str(k)
+            if i == 0:
+                self.output_layers.append(Dense(1, name=layer_name))
+                self.loss_functions.append(tf.keras.losses.MeanSquaredError())
+                # self.loss_functions[layer_name] = "mse"
+            elif i == 2:
+                self.output_layers.append(
+                    Dense(1, activation="sigmoid", name=layer_name))
+                # self.loss_functions.append(CellCNN.binary_masked_loss)
+                self.loss_functions.append(tf.keras.losses.BinaryCrossentropy())
+            elif i > 2:
+                self.output_layers.append(
+                    Dense(i, activation="softmax", name=layer_name))
+                self.loss_functions.append(
+                    tf.keras.losses.SparseCategoricalCrossentropy())
+                # self.loss_functions[layer_name] = tf.keras.losses.SparseCategoricalCrossentropy
+            else:
+                raise ValueError("Invalid output layer specification given!")
+            k += 1
+
     def _compile(self):
-        assert self.n_classes > 1, "There must be at least 2 classes for classifier!"
-        if self.n_classes == 2:
-            self.my_layers.append(Dense(1, activation="sigmoid"))
-            loss_fn = tf.keras.losses.binary_crossentropy
-            # loss_fn = CellCNN.binary_masked_loss
-        else:
-            self.my_layers.append(Dense(self.n_classes, activation="linear"))
-            loss_fn = tf.keras.losses.mean_squared_error
-            # loss_fn = CellCNN.sparse_categorical_masked_loss
         self.compile(
             optimizer=keras.optimizers.Adam(learning_rate=self.lr),
-            loss=loss_fn,
+            loss=self.loss_functions,
             metrics=[CellCNN.masked_accuracy,
                      'accuracy',
                      CellCNN.binary_accuracy
                      ]
         )
+
+    def custom_fit(self,
+                   data,
+                   labels,
+                   epochs,
+                   batch_size=256):
+        train_dataset = tf.data.Dataset.from_tensor_slices((data, labels))
+        train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
+        for epoch in range(epochs):
+            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
+
+                with tf.GradientTape() as tape:
+                    logits = self(x_batch_train, training=True)
+                    loss_value = 0
+                    for i in range(len(self.loss_functions)):
+                        loss_fn = self.loss_functions[i]
+                        # tf.print(f"y_true {y_batch_train[:,i]}, y_pred {tf.transpose(logits[i])}")
+                        loss_value += loss_fn(y_batch_train[:,i], tf.transpose(logits[i]))
+                grads = tape.gradient(loss_value, self.trainable_weights)
+                self.optimizer.apply_gradients(
+                    zip(grads, self.trainable_weights))
+                if step % 200 == step % 200:
+                    print(
+                        "Training loss (for one batch) at step %d: %.4f"
+                        % (step, float(loss_value)))
+                    print("Seen so far: %s samples" %
+                          ((step + 1) * batch_size))
+
 
     def init_random(self,
                     data,
@@ -133,7 +189,10 @@ class CellCNN(Model):
         x = inputs
         for layer in self.my_layers:
             x = layer(x)
-        return x
+        ret = []
+        for layer in self.output_layers:
+            ret.append(layer(x))
+        return ret
 
     def show_scatter_analysis(self,
                               data,
@@ -206,7 +265,7 @@ class CellCNN(Model):
 
     def get_config(self):
         return {"input_shape": self.my_input_shape,
-                "n_classes": self.n_classes,
+                "classes": self.classes,
                 "conv": self.conv,
                 "k": self.k,
                 "lr": self.lr,
@@ -231,7 +290,7 @@ class CellCNN(Model):
     @staticmethod
     def load_from_dict(config):
         return CellCNN(input_shape=config["input_shape"],
-                       n_classes=config["n_classes"],
+                       classes=config["classes"],
                        conv=config["conv"],
                        k=config["k"],
                        lr=config["lr"],
@@ -242,23 +301,23 @@ class SCellCNN(CellCNN):
     def __init__(self, original_model):
         super(CellCNN, self).__init__()
         self.my_layers = []
-        self.n_classes = original_model.n_classes
+        self.classes = original_model.classes
         my_weights = []
-        for layer in original_model.layers[:-1]:
+        for layer in original_model.my_layers:
             if type(layer) == Conv1D:
                 weights = layer.get_weights()[0][0]
                 bias = layer.get_weights()[1]
                 my_weights.append([weights, bias])
                 self.my_layers.append(Dense(bias.shape[0], activation="relu"))
-            elif type(layer) == Dense:
-                weights = layer.get_weights()[0]
-                bias = layer.get_weights()[1]
-                my_weights.append([weights, bias])
-                self.my_layers.append(Dense(bias.shape[0],
-                                      activation=layer.activation))
+            # elif type(layer) == Dense:
+            #     weights = layer.get_weights()[0]
+            #     bias = layer.get_weights()[1]
+            #     my_weights.append([weights, bias])
+            #     self.my_layers.append(Dense(bias.shape[0],
+            #                           activation=layer.activation))
             else:
                 pass
-        self.build((None, original_model.my_input_shape[-1]))
+        self.build(original_model.my_input_shape)
         for i in range(len(self.my_layers)):
             self.my_layers[i].set_weights(my_weights[i])
 
@@ -305,9 +364,9 @@ class InitCellCNN(CellCNN):
                 )
 
     @staticmethod
-    def load_from_dict(config, n_classes):
+    def load_from_dict(config, classes):
         return InitCellCNN(input_shape=(None, config["input_shape"][2]),
-                           n_classes=n_classes,
+                           classes=classes,
                            conv=config["conv"],
                            k=config["k"],
                            lr=config["lr"],
