@@ -84,7 +84,8 @@ class CellCNN(Model):
                 self.output_layers.append(
                     Dense(1, activation="sigmoid", name=layer_name))
                 # self.loss_functions.append(CellCNN.binary_masked_loss)
-                self.loss_functions.append(tf.keras.losses.BinaryCrossentropy())
+                self.loss_functions.append(
+                    tf.keras.losses.BinaryCrossentropy())
             elif i > 2:
                 self.output_layers.append(
                     Dense(i, activation="softmax", name=layer_name))
@@ -104,35 +105,6 @@ class CellCNN(Model):
                      CellCNN.binary_accuracy
                      ]
         )
-
-    def custom_fit(self,
-                   data,
-                   labels,
-                   epochs,
-                   batch_size=256):
-        train_dataset = tf.data.Dataset.from_tensor_slices((data, labels))
-        train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
-        for epoch in range(epochs):
-            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-
-                with tf.GradientTape() as tape:
-                    logits = self(x_batch_train, training=True)
-                    loss_value = tf.zeros((batch_size))
-                    for i in range(len(self.loss_functions)):
-                        loss_fn = self.loss_functions[i]
-                        # tf.print(f"y_true {y_batch_train[:,i]}, y_pred {tf.transpose(logits[i])}")
-                        loss_value = loss_fn(y_batch_train[:,i], logits[i]) + loss_value
-                tf.print(loss_value)
-                grads = tape.gradient(loss_value, self.trainable_weights)
-                self.optimizer.apply_gradients(
-                    zip(grads, self.trainable_weights))
-                if step % 200 == step % 200:
-                    print(
-                        "Training loss (for one batch) at step %d: %.4f"
-                        % (step, float(loss_value[0])))
-                    print("Seen so far: %s samples" %
-                          ((step + 1) * batch_size))
-
 
     def init_random(self,
                     data,
