@@ -132,13 +132,12 @@ def train_from_data_labels(data,
                            layers=[64, ],
                            epochs=10,
                            classes=[2, ]):
-    data = np.array(data)
-    labels = np.array(labels)
     input_shape = list(data.shape)
     input_shape.insert(0, None)
     input_shape = tuple(input_shape)
     model = CellCNN(input_shape=input_shape, conv=layers, classes=classes)
-    model.custom_fit(data, labels, epochs=epochs)
+    model.fit(data, labels, validation_data=(
+        test_data, test_labels), epochs=epochs)
     return model
 
 

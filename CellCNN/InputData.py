@@ -64,6 +64,7 @@ class InputData:
             retX[i] = self.datasets[indices[i]].get_multi_cell_input(
                 self.multi_cell_size)
             retY[i] = self.labels[indices[i]]
+        retY = list(retY.transpose())
         return (retX, retY)
 
     def plot(self, amount=5000,
