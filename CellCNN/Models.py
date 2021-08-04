@@ -4,14 +4,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras.layers import Conv1D, Dense, Lambda
+from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.engine import training
+from tensorflow.python.ops.math_ops import reduce_sum
 
 #TODO: Bugfix masking.
 
+class L1Layer(Layer):
+    def __init__(self, loss_weight=0.01):
+        super(L1Layer, self).__init__()
+        self.loss_weight=loss_weight
+    def call(self, inputs):
+        self.add_loss(self.loss_weight * reduce_sum(inputs))
+        return inputs
 
 class CellCNN(Model):
     def __init__(self,
@@ -20,7 +28,8 @@ class CellCNN(Model):
                  conv=[16, ],
                  k=25,
                  lr=0.01,
-                 activation="relu"):
+                 activation="relu",
+                 l1_weight=0.01):
         """
         Build CellCNN model
 
@@ -43,6 +52,7 @@ class CellCNN(Model):
         self.k = k
         self.lr = lr
         self.activation = activation
+        self.l1_weight = l1_weight
         self._build_layers()
         self._compile()
         self.build(tuple(self.my_input_shape))
@@ -63,6 +73,7 @@ class CellCNN(Model):
                            activation=self.activation,
                            )
                 )
+        self.my_layers.append(L1Layer(self.l1_weight))
         self.my_layers.append(Lambda(self._select_top,
                                      output_shape=(1,),
                                      name="pooling"
