@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer
+from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
@@ -73,6 +73,7 @@ class CellCNN(Model):
                            activation=self.activation,
                            )
                 )
+                self.my_layers.append(Dropout(0.25))
         self.my_layers.append(L1Layer(self.l1_weight))
         self.my_layers.append(Lambda(self._select_top,
                                      output_shape=(1,),
