@@ -26,67 +26,73 @@ data <- lapply(fcs_files, get_values)
 
 ###### Labels #######
 
-labels <- data_table[,c("pT", "pT", "pN", "ki.67", "neoadj..CHT", "age")]
+labels <- data_table[,c("pT", "pT", "pN", "ki.67", "neoadj..CHT", "age", "BRCA", "X1.year.relapse")]
 labels[,1][labels[,1]=="1c"] = 1
 labels[,1] <- strtoi(labels[,1]) - 1
 labels[,2] <- ifelse(labels[,2]=="1c",yes = 1, no = 0)
+labels[,"BRCA"][is.na(labels[,"BRCA"])] <- -1
+labels[,"X1.year.relapse"][is.na(labels[,"X1.year.relapse"])] <- -1
 
-class_description = c(3L, 2L, 2L, 0L, 2L, 0L)
+class_description = c(3L, 2L, 2L, 0L, 2L, 0L, 2L, 2L)
 
 ###### Training model and getting results ######
 
 model <- rscripts$train_model(data = data,
                               labels = labels,
                               multicell_size = 1000L,
-                              amount = 10000L,
-                              test_amount = 2000L,
-                              layers = list(16L),
-                              epochs = 2L,
+                              amount = 100000L,
+                              test_amount = 20000L,
+                              layers = list(128L, 64L, 8L),
+                              epochs = 10L,
                               classes = class_description)
 
+model$save("single_layer_w_masking.json", "single_layer_w_masking.h5")
 sm <- model$get_single_cell_model()
 results <- lapply(data, sm)
 results <- lapply(results, np$array)
-
+for (i in 1:8) {
+  print(paste(i, ":", max(results[[2]][,i])))
+}
 ###### Visualisation ######
 
 for (k in 1:length(fcs_files)){
-  # 2,3,5,6,7,8,9,11,12,13,14,15
-  i <- 13
-  j <- 14
-  l <- 15
+  # 1,2,8
+  i <- 1
+  j <- 2
+  l <- 8
   a <- results[[k]][,i]
   a <- ifelse(a==0, yes=0, no=0.8)
   b <- results[[k]][,j]
   b <- ifelse(b==0, yes=0, no=0.8)
   c <- results[[k]][,l]
   c <- ifelse(c==0, yes=0, no=0.8)
-  color <- cbind(a, b, c, results[[k]][,10])
+  color <- cbind(a, b, c, results[[k]][,6])
   d <- exprs(fcs_files[[k]])
   scattermoreplot(d[,"vaevictis_1"],
-                 d[,"vaevictis_2"],
-                 col=rgb(color),
-                 cex = 1.3)
+                  d[,"vaevictis_2"],
+                  col=rgb(color),
+                  cex = 1.5)
 }
 
 ###### Saving files ######
 
 for (k in 1:length(fcs_files)) {print(paste("Processing file", k))
-  for (i in c(2,3,5,6,7,8,9,11,12,13,14,15)){
+  for (i in c(1,2,8)){
     fcs_files[[k]] <- enrich.FCS.CIPHE(fcs_files[[k]],
                                        results[[k]][,i],
                                        nw.names = list(paste("Filter", i)))
   }
-  write.FCS(fcs_files[[k]], gsub("vaevictis.fcs", "enriched_single2.fcs", file_names[[k]]))
+  write.FCS(fcs_files[[k]], gsub("vaevictis.fcs", "single_with_masking.fcs", file_names[[k]]))
 }
 
 ###### Getting filter weights  ######
 
 # This helps print the right filters ([n] -> filter n + 1)
-f <- file("output.txt", open="wt")
-first_output_layer <- 4
-for (i in 0:5) {
-  for (k in c(2,3,5,6,7,8,9,11,12,13,14,15)){
+f <- file("single_with_masking.txt", open="wt")
+f <- stderr()
+first_output_layer <- 9
+for (i in 0:7) {
+  for (k in c(1,2,8)){
     writeLines(paste("\n Output", i, " Filter: ", k, "\t"), f)
     writeLines(paste("", model$layers[[first_output_layer+i]]$weights[[1]][k-1]$numpy()), f)
     

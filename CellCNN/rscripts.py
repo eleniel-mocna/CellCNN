@@ -11,7 +11,12 @@ def train_model(data,
                 test_amount=1000,
                 layers=[64, ],
                 epochs=10,
-                classes=[2, ]):
+                classes=[2, ],
+                k=25,
+                lr=0.01,
+                activation="relu",
+                l1_weight=0.01,
+                dropout=0.25):
     """Return a trained model for given arguments
 
     Parameters
@@ -40,7 +45,15 @@ def train_model(data,
     """
     datasets, labels = Datasets_labels_from_data(data, labels)
     ID = InputData_from_Datasets(datasets, labels, multicell_size)
-    return train_from_InputData(ID, amount, test_amount, layers, epochs, classes)
+    return train_from_InputData(ID, amount, test_amount,
+                                layers=layers,
+                                epochs=epochs,
+                                classes=classes,
+                                k=k,
+                                lr=lr,
+                                activation=activation,
+                                l1_weight=l1_weight,
+                                dropout=dropout)
 
 
 def train_from_InputData(InputData,
@@ -48,7 +61,12 @@ def train_from_InputData(InputData,
                          test_amount=1000,
                          layers=[64, ],
                          epochs=10,
-                         classes=[2, ]):
+                         classes=[2, ],
+                         k=25,
+                         lr=0.01,
+                         activation="relu",
+                         l1_weight=0.01,
+                         dropout=0.25):
     """Return trained CellCNN model to given arguments
 
     Parameters
@@ -79,7 +97,12 @@ def train_from_InputData(InputData,
                                   test_labels=labels_test,
                                   layers=layers,
                                   epochs=epochs,
-                                  classes=classes)
+                                  classes=classes,
+                                  k=k,
+                                  lr=lr,
+                                  activation=activation,
+                                  l1_weight=l1_weight,
+                                  dropout=dropout)
 
 
 def Datasets_labels_from_data(data,
@@ -131,11 +154,17 @@ def train_from_data_labels(data,
                            test_labels,
                            layers=[64, ],
                            epochs=10,
-                           classes=[2, ]):
+                           classes=[2, ],
+                           k=25,
+                           lr=0.01,
+                           activation="relu",
+                           l1_weight=0.01,
+                           dropout=0.25):
     input_shape = list(data.shape)
     input_shape.insert(0, None)
     input_shape = tuple(input_shape)
-    model = CellCNN(input_shape=input_shape, conv=layers, classes=classes)
+    model = CellCNN(input_shape=input_shape, conv=layers, classes=classes,
+                    k=k, lr=lr, activation=activation, l1_weight=l1_weight, dropout=dropout)
     model.fit(data, labels, validation_data=(
         test_data, test_labels), epochs=epochs)
     return model
