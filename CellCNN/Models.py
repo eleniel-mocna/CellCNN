@@ -13,13 +13,16 @@ from tensorflow.python.ops.math_ops import reduce_sum
 
 #TODO: Bugfix masking.
 
+
 class L1Layer(Layer):
     def __init__(self, loss_weight=0.01):
         super(L1Layer, self).__init__()
-        self.loss_weight=loss_weight
+        self.loss_weight = loss_weight
+
     def call(self, inputs):
         self.add_loss(self.loss_weight * reduce_sum(inputs))
         return inputs
+
 
 class CellCNN(Model):
     def __init__(self,
@@ -94,15 +97,16 @@ class CellCNN(Model):
             elif i == 2:
                 self.output_layers.append(
                     Dense(1, activation="sigmoid", name=layer_name))
-                # self.loss_functions.append(CellCNN.binary_masked_loss)
-                self.loss_functions.append(
-                    tf.keras.losses.BinaryCrossentropy())
+                self.loss_functions.append(CellCNN.binary_masked_loss)
+                #self.loss_functions.append(
+                #    tf.keras.losses.BinaryCrossentropy())
             elif i > 2:
                 self.output_layers.append(
                     Dense(i, activation="softmax", name=layer_name))
+                #self.loss_functions.append(
+                #    tf.keras.losses.SparseCategoricalCrossentropy())
                 self.loss_functions.append(
-                    tf.keras.losses.SparseCategoricalCrossentropy())
-                # self.loss_functions[layer_name] = tf.keras.losses.SparseCategoricalCrossentropy
+                    CellCNN.sparse_categorical_masked_loss)
             else:
                 raise ValueError("Invalid output layer specification given!")
             k += 1
