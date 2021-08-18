@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer
+from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
@@ -32,7 +32,8 @@ class CellCNN(Model):
                  k=25,
                  lr=0.01,
                  activation="relu",
-                 l1_weight=0.01):
+                 l1_weight=0.01,
+                 dropout = 0.25):
         """
         Build CellCNN model
 
@@ -56,6 +57,7 @@ class CellCNN(Model):
         self.lr = lr
         self.activation = activation
         self.l1_weight = l1_weight
+        self.dropout = dropout
         self._build_layers()
         self._compile()
         self.build(tuple(self.my_input_shape))
@@ -69,6 +71,7 @@ class CellCNN(Model):
     def _build_filter_layers(self):
         self.my_layers = []
         for i in range(len(self.conv)):
+            self.my_layers.append(Dropout(self.dropout))
             if self.conv[i] != 0:
                 self.my_layers.append(
                     Conv1D(filters=self.conv[i],
@@ -76,6 +79,7 @@ class CellCNN(Model):
                            activation=self.activation,
                            )
                 )
+
         self.my_layers.append(L1Layer(self.l1_weight))
         self.my_layers.append(Lambda(self._select_top,
                                      output_shape=(1,),
@@ -257,7 +261,9 @@ class CellCNN(Model):
                 "conv": self.conv,
                 "k": self.k,
                 "lr": self.lr,
-                "activation": self.activation}
+                "activation": self.activation,
+                "l1_weight" : self.l1_weight,
+                "dropout" : self.dropout}
 
     def save(self, config_file, weights_file):
         json_config = self.get_config()
@@ -282,7 +288,9 @@ class CellCNN(Model):
                        conv=config["conv"],
                        k=config["k"],
                        lr=config["lr"],
-                       activation=config["activation"])
+                       activation=config["activation"],
+                       l1_weight=config["l1_weight"],
+                       dropout=config["dropout"])
 
 
 class SCellCNN(CellCNN):
