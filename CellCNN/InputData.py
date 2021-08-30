@@ -8,11 +8,10 @@ RNG = np.random.default_rng(211)
 
 class InputData:
     def __init__(
-        self,
-        datasets,
-        multi_cell_size=1000,
-        labels=None
-    ):
+            self,
+            datasets,
+            multi_cell_size=1000,
+            labels=None):
         """
         Arguments
         ---------
@@ -54,7 +53,7 @@ class InputData:
         -------
         multi_cell_inputs : np.array(`amount`, multi_cell_size, dimension)
             Data (X).
-        multi_cell_labels : np.array(`amount`, 1)
+        multi_cell_labels : list(n_labels, `amount`)
             Labels (Y).
         """
         retX = np.ndarray((amount, self.multi_cell_size, self.dimension))

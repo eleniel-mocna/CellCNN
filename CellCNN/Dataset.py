@@ -102,7 +102,7 @@ class Dataset:
         elif split == DatasetSplit.VALIDATION:
             return RNG.choice(self.validation_data, size=size)
         else:
-            raise ValueError("Split has to be a DataSplit enum value!")
+            raise ValueError(f"Split has to be a DataSplit enum value!, not {type(split)}")
 
     def _split_data(self, test_split, validation_split):
         """

@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from InputData import InputData
 from Dataset import DataDataset, DatasetSplit
 from Models import CellCNN
@@ -16,7 +17,8 @@ def train_model(data,
                 lr=0.01,
                 activation="relu",
                 l1_weight=0.01,
-                dropout=0.25):
+                dropout=0.25,
+                patience=3):
     """Return a trained model for given arguments
 
     Parameters
@@ -53,7 +55,8 @@ def train_model(data,
                                 lr=lr,
                                 activation=activation,
                                 l1_weight=l1_weight,
-                                dropout=dropout)
+                                dropout=dropout,
+                                patience=patience)
 
 
 def train_from_InputData(InputData,
@@ -66,7 +69,8 @@ def train_from_InputData(InputData,
                          lr=0.01,
                          activation="relu",
                          l1_weight=0.01,
-                         dropout=0.25):
+                         dropout=0.25,
+                         patience=3):
     """Return trained CellCNN model to given arguments
 
     Parameters
@@ -102,7 +106,8 @@ def train_from_InputData(InputData,
                                   lr=lr,
                                   activation=activation,
                                   l1_weight=l1_weight,
-                                  dropout=dropout)
+                                  dropout=dropout,
+                                  patience=patience)
 
 
 def Datasets_labels_from_data(data,
@@ -159,14 +164,17 @@ def train_from_data_labels(data,
                            lr=0.01,
                            activation="relu",
                            l1_weight=0.01,
-                           dropout=0.25):
+                           dropout=0.25,
+                           patience=3):
     input_shape = list(data.shape)
     input_shape.insert(0, None)
     input_shape = tuple(input_shape)
     model = CellCNN(input_shape=input_shape, conv=layers, classes=classes,
                     k=k, lr=lr, activation=activation, l1_weight=l1_weight, dropout=dropout)
     model.fit(data, labels, validation_data=(
-        test_data, test_labels), epochs=epochs)
+        test_data, test_labels), epochs=epochs,
+        callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)],
+        batch_size = 128)
     return model
 
 

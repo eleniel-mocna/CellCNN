@@ -96,7 +96,7 @@ class CellCNN(Model):
             layer_name = "output_" + str(k)
             if i == 0:
                 self.output_layers.append(Dense(1, name=layer_name))
-                self.loss_functions.append(tf.keras.losses.MeanSquaredError())
+                self.loss_functions.append(CellCNN.mse_masked_loss)
                 # self.loss_functions[layer_name] = "mse"
             elif i == 2:
                 self.output_layers.append(
@@ -130,7 +130,7 @@ class CellCNN(Model):
                     labels=None,
                     n_classes=10,
                     epochs=10,
-                    batch_size=256):
+                    batch_size=256): ### THIS CAN'T WORK!!! BUG
         init_model = InitCellCNN.load_from_dict(self.get_config(), n_classes)
         if labels is None:
             labels = np.random.randint(
@@ -150,6 +150,13 @@ class CellCNN(Model):
             threshold = K.cast(threshold, y_pred.dtype)
             y_pred = K.cast(y_pred > threshold, y_pred.dtype)
         return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
+
+    @staticmethod
+    def mse_masked_loss(y_true, y_pred):  # From original implementation
+        mask = K.cast(K.not_equal(y_true, -1), K.floatx())
+        y_true = K.cast(y_true, K.floatx())
+        y_pred = K.cast(y_pred, K.floatx())
+        return tf.losses.mse(y_true * mask, y_pred * mask)
 
     @staticmethod
     def binary_masked_loss(y_true, y_pred):  # From original implementation
@@ -215,41 +222,11 @@ class CellCNN(Model):
                        normalize=True
                        ):
         """Return np.array of values out of trained filters on given data."""
-        print(DeprecationWarning("Use SCellCNN model instead."))
-        x = data
-        for layer in self.my_layers:
-            if type(layer) == Conv1D:
-                x = (np.matmul(x,
-                               np.array(layer.weights[0][0]))
-                     + np.array(layer.weights[1]))
-        ret = x
-        if relu:
-            ret = self._relu(ret)
-        if normalize:
-            ret = self._normalize_output_values(ret)
-        return ret
+        sm = self.get_single_cell_model()        
+        return sm(data)
 
     def get_single_cell_model(self):
         return SCellCNN(self)
-
-    def _relu(self, values):
-        """ Aply RELU to given values"""
-        assert len(values.shape) == 2, "Non-standard input into RELU!"
-        for i in range(values.shape[0]):
-          for j in range(values.shape[1]):
-            values[i, j] = max(0, values[i, j])
-        return values
-
-    def _normalize_output_values(self, values):
-        """
-        Normalize given values for plt.
-        Reduce dimension by last dimension and retun normalized sums
-        """
-        assert len(values.shape) == 2, "Non-standard input into normalization!"
-        values = np.sum(values, -1)
-        values -= np.min(values)
-        values /= np.max(values)
-        return values
 
     def _select_top(self, tensor,):
         """Return tensor containing mean of k largest numbers for given tensor"""
