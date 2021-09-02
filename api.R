@@ -1,4 +1,4 @@
-NAME <- "model_210830_0_test"
+NAME <- "test"
 CHANNELS_FILE <- "BC_LiveCells.txt"
 DATA_FILE <- "BCa_cohort_souceklab.txt"
 FILES_SUFFIX <- "_LiveCellsvaevictis_b.fcs"
@@ -38,16 +38,13 @@ data <- load_data(CHANNELS_FILE, DATA_FILE, FILES_SUFFIX)
 
 ###### Labels #######
 {
-  labels <- data_table[,c(2,4,5,8)]
-  labels[,1] <- ifelse(labels[,2]=="1c",yes = 0, no = 1)
+  labels <- data_table[c(2)]
+  labels[,1] <- ifelse(labels[,1]=="1c",yes = 0, no = 1)
   labels[is.na(labels)] <- -1
   
   labels_desc <- list()
   labels_desc[[1]] <- "pT [1c, 2/3]"
-  labels_desc[[2]] <- "pos..LN.removed.LN"
-  labels_desc[[3]] <- "ki.67"
-  labels_desc[[4]] <- "age"
-  class_description <- c(2L,0L,0L,0L)
+  class_description <- list(2L)
 }
 
 ###### Training model and getting results ######
@@ -78,7 +75,7 @@ train_model <- function(data,
   results <- lapply(data, sm)
   results <<- lapply(results, np$array)
 }
-train_model(data, labels, class_description,1000L, 5000L, 1000L)
+train_model(data, labels, class_description,1000L, 50000L, 10000L)
 
 ##### Processing results #####
 get_useful <- function(results)
