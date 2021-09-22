@@ -15,7 +15,18 @@ from tensorflow.python.ops.math_ops import reduce_sum
 
 
 class L1Layer(Layer):
+    """Layer which passes values through and applies
+    1L regularization to them.
+    """
+
     def __init__(self, loss_weight=0.01):
+        """Initialize the layer.
+
+        Parameters
+        ----------
+        loss_weight : float, optional
+            How strong should the regularization be, by default 0.01
+        """
         super(L1Layer, self).__init__()
         self.loss_weight = loss_weight
 
@@ -25,6 +36,15 @@ class L1Layer(Layer):
 
 
 class CellCNN(Model):
+    """Implementation of CellCNN.
+
+    Implementation of `CellCNN network<https://www.nature.com/articles/ncomms14825>`_.
+    
+    With some added functionalities such as using multiple layers
+    of filters, using multiple sets of labels or applying
+    l1 regularization to filter outputs.
+    """
+
     def __init__(self,
                  input_shape,
                  classes=[2, ],
@@ -33,21 +53,44 @@ class CellCNN(Model):
                  lr=0.01,
                  activation="relu",
                  l1_weight=0.01,
-                 dropout = 0.25):
-        """
-        Build CellCNN model
+                 dropout=0.25):
+        """Initialize CellCNN model.
 
-        Arguments
-        ---------
-            classes : list of ints
-                list describing labels:
-                    0  : metric value
-                    2  : binary classification
-                    n>2: n-nary classification
-            conv : list of ints
-                list of filter sizes of convolutional layers
-            k : int
-                number of pooled convolutional outputs after last conv layer
+        Parameters
+        ----------
+        input_shape : tuple (None, ncell, dims)
+            Description of input shape, where:
+            input_shape[0]=None: for batch size,
+            input_shape[1]: n of cells in a multi_cell input,
+            input_shape[2]: n of dimensions for every cell.
+        classes : list, optional
+            Description of labels used, where:
+            0: linear variable,
+            2: binary classification,
+            n > 2: n-nary classification.
+            E.g. [2,0] expects labels to express a binary classification
+            problem and a regression problem.
+            By default [2, ]
+        conv : list, optional
+            Number of filters in convolution layers,
+            e.g. [128, 128, 16] describes two layers of 
+            128 nodes followed by a layer of 16 nodes.
+            By default [16, ]
+        k : int, optional
+            Number of cells that go through pooling
+            after the last filter layer, 
+            by default 25
+        lr : float, optional
+            Learning rate, by default 0.01.
+        activation : str or tf activation function, optional
+            Activation function, by default "relu"
+        l1_weight : float, optional
+            Weight of l1 regularization applied to the last
+            filter outputs, 0 for no regularization,
+            by default 0.01.
+        dropout : float, optional
+            Strength of dropout before every filter layer,
+            by default 0.25
         """
         super(CellCNN, self).__init__()
         self.my_input_shape = input_shape
@@ -64,11 +107,17 @@ class CellCNN(Model):
 
     def _build_layers(self):
         """Build layers for arguments given in __init__()
+
+        Used by __init__.
         """
         self._build_filter_layers()
         self._build_output_layers()
 
     def _build_filter_layers(self):
+        """Build the first portion of layers, mainly responsible for filtering.
+
+        Used by _build_layers.
+        """
         self.my_layers = []
         for i in range(len(self.conv)):
             self.my_layers.append(Dropout(self.dropout))
@@ -88,6 +137,15 @@ class CellCNN(Model):
                               )
 
     def _build_output_layers(self):
+        """Build the second portion of layers, mainly responsible for generating output
+
+        Used by _build_layers.
+        
+        Raises
+        ------
+        ValueError
+            Not supported label description given.
+        """
         self.output_layers = []
         self.loss_functions = []
 
@@ -116,6 +174,10 @@ class CellCNN(Model):
             k += 1
 
     def _compile(self):
+        """Compile the model.
+
+        Used by __init__.
+        """
         self.compile(
             optimizer=keras.optimizers.Adam(learning_rate=self.lr),
             loss=self.loss_functions,
@@ -130,7 +192,7 @@ class CellCNN(Model):
                     labels=None,
                     n_classes=10,
                     epochs=10,
-                    batch_size=256): ### THIS CAN'T WORK!!! BUG
+                    batch_size=256):  # THIS CAN'T WORK!!! BUG
         init_model = InitCellCNN.load_from_dict(self.get_config(), n_classes)
         if labels is None:
             labels = np.random.randint(
@@ -146,13 +208,35 @@ class CellCNN(Model):
 
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5):  # From original implementation
+        """Calculate accuracy while ignoring -1s
+
+        Parameters
+        ----------
+        y_true, y_pred : tensor
+        threshold : float, optional
+            How far from y_true should be counted as accurate, by default 0.5
+
+        Returns
+        -------
+        tensor
+        """
         if threshold != 0.5:
             threshold = K.cast(threshold, y_pred.dtype)
             y_pred = K.cast(y_pred > threshold, y_pred.dtype)
         return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
 
     @staticmethod
-    def mse_masked_loss(y_true, y_pred):  # From original implementation
+    def mse_masked_loss(y_true, y_pred):
+        """Calculate MSE while ignoring -1s
+
+        Parameters
+        ----------
+            y_true, y_pred : tensor
+
+        Returns
+        -------
+        tensor
+        """
         mask = K.cast(K.not_equal(y_true, -1), K.floatx())
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
@@ -160,6 +244,16 @@ class CellCNN(Model):
 
     @staticmethod
     def binary_masked_loss(y_true, y_pred):  # From original implementation
+        """Calculate binary crossentropy while ignoring -1s
+
+        Parameters
+        ----------
+        y_true, y_pred : tensor
+
+        Returns
+        -------
+        tensor
+        """
         mask = K.cast(K.not_equal(y_true, -1), K.floatx())
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
@@ -168,6 +262,16 @@ class CellCNN(Model):
     @staticmethod
     # From original implementation
     def sparse_categorical_masked_loss(y_true, y_pred):
+        """Calculate categorical crossentropy while ignoring -1s
+
+        Parameters
+        ----------
+        y_true, y_pred : tensor
+
+        Returns
+        -------
+        tensor
+        """
         mask = K.cast(K.not_equal(y_true, -1), K.floatx())
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
@@ -175,6 +279,16 @@ class CellCNN(Model):
 
     @staticmethod
     def masked_accuracy(y_true, y_pred):  # From original implementation
+        """Calculate accuracy while ignoring -1s
+
+        Parameters
+        ----------
+        y_true, y_pred : tensor
+
+        Returns
+        -------
+        tensor
+        """
         mask = K.cast(K.not_equal(y_true, -1), K.floatx())
         nb_mask = K.sum(K.cast(K.equal(y_true, -1), K.floatx()))
         nb_unmask = K.sum(mask)
@@ -185,6 +299,17 @@ class CellCNN(Model):
         return ret
 
     def call(self, inputs):
+        """Call method used by tf.Model methods
+
+        Parameters
+        ----------
+        inputs : tensor of self.input_shape            
+
+        Returns
+        -------
+        tensor
+            Results
+        """
         x = inputs
         for layer in self.my_layers:
             x = layer(x)
@@ -221,28 +346,68 @@ class CellCNN(Model):
                        relu=True,
                        normalize=True
                        ):
-        """Return np.array of values out of trained filters on given data."""
-        sm = self.get_single_cell_model()        
+        """Return filter outputs for given weights
+
+        Return outputs of the last filter layer, 
+        which are used for the analysis.
+
+        Parameters
+        ----------
+        data : np.array of shape (n cells, dimension)
+            The cells wanted for analysis in a numpy array
+        relu : bool, optional BUG:This doesn't work
+            Should relu be applied to the outputs, by default True
+        normalize : bool, optional BUG:This doesn't work
+            Should the results be normalized into [0-1], by default True
+
+        Returns
+        -------
+        np.array (n cells, n filters)
+            Results for every cell in a np.array
+        """
+        sm = self.get_single_cell_model()
         return sm(data)
 
     def get_single_cell_model(self):
+        """Generate model for single cell analysis.
+
+        Returns
+        -------
+        SCellCNN
+            Model for single cell analysis generated from this one.
+        """
         return SCellCNN(self)
 
-    def _select_top(self, tensor,):
+    def _select_top(self, tensor):
         """Return tensor containing mean of k largest numbers for given tensor"""
         return K.mean(tf.sort(tensor, axis=1)[:, -self.k:, :], axis=1)
 
     def get_config(self):
+        """Return configuration for this model.
+
+        Returns
+        -------
+        dict
+        """
         return {"input_shape": self.my_input_shape,
                 "classes": self.classes,
                 "conv": self.conv,
                 "k": self.k,
                 "lr": self.lr,
                 "activation": self.activation,
-                "l1_weight" : self.l1_weight,
-                "dropout" : self.dropout}
+                "l1_weight": self.l1_weight,
+                "dropout": self.dropout}
 
     def save(self, config_file, weights_file):
+        """Save this model.
+
+        Parameters
+        ----------
+        config_file : str or path
+            Path to where the config .json file should be saved
+        weights_file : str or path
+            Path to where the weights .h5 file should be saved
+        """
         json_config = self.get_config()
         with open(config_file, 'w') as file:
             json.dump(json_config, file)
@@ -250,6 +415,22 @@ class CellCNN(Model):
 
     @staticmethod
     def load(config_file, weights_file=None):
+        """Load a model from storage
+
+        Parameters
+        ----------
+        config_file : str or path
+            Path to the config .json file
+        weights_file : str or path, optional
+            Path to the weights .h5 file or None,
+            if no weights are to be loaded,
+            by default None
+
+        Returns
+        -------
+        CellCNN
+            Model of this class as was loaded.
+        """
         with open(config_file, 'r') as file:
             config = json.load(file)
             model = CellCNN.load_from_dict(config)
@@ -260,6 +441,20 @@ class CellCNN(Model):
 
     @staticmethod
     def load_from_dict(config):
+        """Transled config dict to CellCNN model
+
+
+        Used by CellCNN.load.
+
+        Parameters
+        ----------
+        config : dict
+
+        Returns
+        -------
+        CellCNN
+            Model generated by the given dict
+        """
         return CellCNN(input_shape=config["input_shape"],
                        classes=config["classes"],
                        conv=config["conv"],
@@ -271,7 +466,23 @@ class CellCNN(Model):
 
 
 class SCellCNN(CellCNN):
+    """Model used for single cell analysis
+
+    This is the model we want to use for analysis on single cell level,
+    it is generated by a pre-trained CellCNN model and will return values
+    output by the last filter layer.
+    It skips all layers except the convolutional filter ones,
+    and is not designed to be fitted/trained.
+    """
+
     def __init__(self, original_model):
+        """Initialize a single cell CellCNN
+
+        Parameters
+        ----------
+        original_model : CellCNN
+            Model on whose architecture and weights this one should be based.
+        """
         super(CellCNN, self).__init__()
         self.my_layers = []
         self.classes = original_model.classes
@@ -295,6 +506,7 @@ class SCellCNN(CellCNN):
             self.my_layers[i].set_weights(my_weights[i])
 
     def call(self, inputs):
+        """Call method used by tf.Model methods."""
         x = inputs
         for i in self.my_layers:
             x = i(x)
@@ -302,6 +514,22 @@ class SCellCNN(CellCNN):
         return x
 
     def show_importance(self, data, scale=False, filters=None, dimensions=(0, 1)):
+        """Display values for cells returned by the last filter layer
+
+        Parameters
+        ----------
+        data : np.array
+            Cells for analysis
+        scale : bool, optional
+            Should the results be scaled before display,
+            by default False
+            BUG: If this is True, this will crash
+        filters : list or None, optional
+            For which filters should the output be displayed, by default None
+        dimensions : tuple, optional
+            Which 2 dimensions should work as the point location on graph,
+            by default (0, 1)
+        """
         def value_to_color(x):
             if (x >= 0.5):
                 return [(x-0.5)*2, 0, 0]

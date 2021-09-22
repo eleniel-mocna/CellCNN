@@ -7,21 +7,26 @@ RNG = np.random.default_rng(211)
 
 
 class InputData:
+    """Class for storage and output of data from Dataset objects.
+
+    To extract data points from this class, use get_multi_cell_inputs().
+
+    Arguments
+    ---------
+    datasets : list/tuple of datasets
+        Datasets, from which the data is taken.
+    multi_cell_size : int
+        How many values should be in one multi-cell input.
+    labels : 2D numpy array 
+        Labels for individual datasets (or their numbers when empty)
+    """
+
     def __init__(
             self,
             datasets,
             multi_cell_size=1000,
             labels=None):
-        """
-        Arguments
-        ---------
-        datasets : list/tuple of datasets
-            Datasets, from which the data is taken.
-        labels : 2D numpy array 
-            Labels for individual datasets (or their numbers when empty)
-        multi_cell_size : int
-            How many values should be in one multi-cell input.
-        """
+
         if labels is None:
             self.labels = np.arange(len(datasets))
             self.labels = np.expand_dims(self.labels, -1)
@@ -40,6 +45,12 @@ class InputData:
 
     @property
     def length(self):
+        """Get the number of datasets stored in this object
+
+        Returns
+        -------
+        int
+        """
         return len(self.datasets)
 
     def get_multi_cell_inputs(self, amount, split_type=DatasetSplit.TRAIN):
@@ -48,6 +59,9 @@ class InputData:
         ---------
         amount : int
             How many samples will be returned
+        split_type : DatasetSplit enum
+            From which part of the dataset should the data be taken
+            BUG: This argument is ignored!
         
         Returns
         -------

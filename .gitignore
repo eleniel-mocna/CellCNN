@@ -12,6 +12,8 @@ CellCNN_env/
 env/
 CellCNN.egg-info/
 build/
+html/
+latex/
 
 # User-specific files
 *.rsuser

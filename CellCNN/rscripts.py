@@ -14,12 +14,12 @@ def train_model(data,
                 epochs=10,
                 classes=[2, ],
                 k=25,
-                lr=0.01,
+                lr=1e-7,
                 activation="relu",
                 l1_weight=0.01,
                 dropout=0.25,
-                patience=3):
-    """Return a trained model for given arguments
+                patience=3):    
+    """Train a model for given arguments
 
     Parameters
     ----------
@@ -39,14 +39,39 @@ def train_model(data,
         Number and shape of layers in model, by default [64, ]
     epochs : int, optional
         N of epochs, by default 10
-
+    classes : list, optional
+        Description of labels used, where:
+            0: linear variable,
+            2: binary classification,
+            n > 2: n-nary classification.
+        E.g. [2,0] expects labels to express a binary classification
+        problem and a regression problem.
+        By default [2, ].
+    k : int, optional
+        Number of cells that go through pooling
+        after the last filter layer, 
+        by default 25.
+    lr : float, optional
+        Learning rate, by default 0.01.
+    activation : str or tf activation function, optional
+        Activation function, by default "relu"
+    l1_weight : float, optional
+        Weight of l1 regularization applied to the last
+        filter outputs, 0 for no regularization,
+        by default 0.01.
+    dropout : float, optional
+        Strength of dropout before every filter layer,
+        by default 0.25.
+    patience : int, optional
+        How many epochs where val_loss is increasing should we wait
+        before we stop the training, by default 3.
     Returns
     -------
     CellCNN
         Trained CellCNN model
     """
     datasets, labels = Datasets_labels_from_data(data, labels)
-    ID = InputData_from_Datasets(datasets, labels, multicell_size)
+    ID = InputData(datasets, multicell_size, labels)
     return train_from_InputData(ID, amount, test_amount,
                                 layers=layers,
                                 epochs=epochs,
@@ -128,30 +153,25 @@ def Datasets_labels_from_data(data,
     (list, np.array)
         Datasets and labels ready for `InputData` class
     """
-    return Datasets_from_data(data), labels_from_labels_sheet(labels)
-
-
-def labels_from_labels_sheet(sheet):
-    return np.array(sheet)
-
+    return Datasets_from_data(data), np.array(labels)
 
 def Datasets_from_data(data):
+    """Convert cell readings to Dataset object
+
+    Parameters
+    ----------
+    data : list-like of shape (n data points, n cells, n parameters per cell)
+        Input data
+
+    Returns
+    -------
+    list
+        Datasets created from given data.
+    """
     ret = []
     for datum in data:
         ret.append(DataDataset(datum, shuffle=False))
     return ret
-
-
-def InputData_from_Datasets(datasets,
-                            labels,
-                            multicell_size):
-    return InputData(datasets, multicell_size, labels)
-
-
-def data_labels_from_InputData(InputData,
-                               amount=1000):
-    return InputData.get_multi_cell_inputs(amount)
-
 
 def train_from_data_labels(data,
                            labels,
@@ -166,6 +186,41 @@ def train_from_data_labels(data,
                            l1_weight=0.01,
                            dropout=0.25,
                            patience=3):
+    """Train model based on given data
+
+    Parameters
+    ----------
+    data : np.array of shape (n multicells, n cells, dimension)
+        Training data
+    labels : np.array of shape (n multicells, n labels)
+        Labels for training data
+    test_data : np.array of shape (n multicells, n cells, dimension)
+        Data for testing
+    test_labels : np.array of shape (n multicells, n labels)
+        Labels for test data
+    layers : list, optional
+        Layer definition passed to CellCNN model, by default [64, ]
+    epochs : int, optional, by default 10        
+    classes : list, optional
+        Labels description given to CellCNN model, by default [2, ]
+    k : int, optional
+        Pooling setting given to CellCNN model, by default 25
+    lr : float, optional
+        Learning rate, by default 0.01
+    activation : str, optional
+        Activation function, by default "relu"
+    l1_weight : float, optional, by default 0.01
+    dropout : float, optional
+        Dropout density, by default 0.25
+    patience : int, optional
+        How many epochs where val_loss is increasing should we wait
+        before we stop the training, by default 3.
+
+    Returns
+    -------
+    CellCNN model
+        Trained model
+    """
     input_shape = list(data.shape)
     input_shape.insert(0, None)
     input_shape = tuple(input_shape)
