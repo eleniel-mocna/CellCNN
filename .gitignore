@@ -9,6 +9,9 @@ csv
 
 # Python enviroment
 CellCNN_env/
+env/
+CellCNN.egg-info/
+build/
 
 # User-specific files
 *.rsuser
