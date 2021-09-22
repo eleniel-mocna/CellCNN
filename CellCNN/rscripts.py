@@ -222,10 +222,11 @@ def train_from_data_labels(data,
         Trained model
     """
     input_shape = list(data.shape)
-    input_shape.insert(0, None)
+    input_shape[0] = None
     input_shape = tuple(input_shape)
     model = CellCNN(input_shape=input_shape, conv=layers, classes=classes,
                     k=k, lr=lr, activation=activation, l1_weight=l1_weight, dropout=dropout)
+    model.init_random(data, epochs=1)
     model.fit(data, labels, validation_data=(
         test_data, test_labels), epochs=epochs,
         callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)],

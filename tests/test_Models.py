@@ -11,15 +11,15 @@ N_FILTERS = 16
 
 class TestModel(unittest.TestCase):
     def setUp(self):
-        dataset1 = CellCNN.Dataset(100000, center_density=0.01)
-        dataset2 = CellCNN.Dataset(100000, center_density=0.99)
+        dataset1 = CellCNN.Dataset(100000, center_density=0.1)
+        dataset2 = CellCNN.Dataset(100000, center_density=0.9)
         self.inp = CellCNN.InputData(
             (dataset1, dataset2), multi_cell_size=MULTICELLSIZE)
         self.model = CellCNN.CellCNN((None, 1000, 2), conv=[64, N_FILTERS], l1_weight=0)
-    @unittest.expectedFailure # Not implemented
+        
     def test_init_random(self):
         old_weights = self.model.get_weights()
-        init_data = self.inp.get_multi_cell_inputs(500)
+        init_data = self.inp.get_multi_cell_inputs(100)[0]
         self.model.init_random(init_data)
         new_weights = self.model.get_weights()
         self.assertEqual(len(old_weights), len(
@@ -27,7 +27,7 @@ class TestModel(unittest.TestCase):
         res = []
         for i in range(len(old_weights)):
             arr = old_weights[i] == new_weights[i]
-            res.append[arr.any()]
+            res.append(arr.any())
         for value in res:
             if value == False:
                 return True
@@ -56,13 +56,16 @@ class TestModel(unittest.TestCase):
     def test_masked_accuracy(self):
         pass
 
-    def test_fit(self):
+    def test_fit(self): # This just doesn't want to work :-/
         X_train, Y_train = self.inp.get_multi_cell_inputs(
-            10000, CellCNN.DatasetSplit.TRAIN)
+            20000, CellCNN.DatasetSplit.TRAIN)
         X_eval, Y_eval = self.inp.get_multi_cell_inputs(
-            1000, CellCNN.DatasetSplit.VALIDATION)
-        cb = self.model.fit(X_train, Y_train, epochs=3,
-                            validation_data=(X_train, Y_train), verbose=1)
+            2000, CellCNN.DatasetSplit.TEST)
+        self.model.init_random(self.inp.get_multi_cell_inputs(100)[0])
+        cb = self.model.fit(X_train, Y_train, epochs=1,
+                            validation_data=(X_eval, Y_eval), verbose=1)
+        print(self.model(X_eval)[:10])
+        print(Y_eval[:10])
         print(cb.history)
         self.assertGreater(cb.history["val_accuracy"][-1], 0.7, "Model doesn't train!")
 

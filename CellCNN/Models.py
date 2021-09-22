@@ -1,14 +1,11 @@
 import json
-from os import name
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
 import tensorflow as tf
 from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer, Dropout
 from tensorflow.keras.models import Model
-from tensorflow.keras.losses import Loss
 import tensorflow.keras.backend as K
-from tensorflow.python.keras.engine import training
 from tensorflow.python.ops.math_ops import reduce_sum
 
 #TODO: Bugfix masking.
@@ -192,16 +189,38 @@ class CellCNN(Model):
                     labels=None,
                     n_classes=10,
                     epochs=10,
-                    batch_size=256):  # THIS CAN'T WORK!!! BUG
+                    batch_size=256): 
+        """Initialize random weights with better than random values
+
+        This just splits given data into random labels and tries to fit
+        to them. This should make the training more stable
+
+        Parameters
+        ----------
+        data : np.array of shape (n inputs, n cells, n dims)
+            Data to which the model should train better.
+        labels : np.array of shape (n inputs*ncells,1), optional
+            Predefined labels, by default None
+        n_classes : int, optional
+            To how many classes should/is the data (be) split, by default 10
+        epochs : int, optional, by default 10
+        batch_size : int, optional, by default 256
+        """        
         init_model = InitCellCNN.load_from_dict(self.get_config(), n_classes)
+        data = data.reshape(data.shape[0]*data.shape[1], data.shape[2])
         if labels is None:
             labels = np.random.randint(
                 low=n_classes, size=data.shape[0], dtype='l')  # Does this work?
 
+        conv_layer_indices = []
+        for i in range(len(self.my_layers)):
+            if type(self.my_layers[i]) == Conv1D:
+                conv_layer_indices.append(i)
+
         init_model.fit(data, labels, batch_size=batch_size, epochs=epochs)
         for i in range(len(init_model.my_layers)-1):
             init_layer = init_model.my_layers[i]
-            this_layer = self.my_layers[i]
+            this_layer = self.my_layers[conv_layer_indices[i]]
             weights, bias = init_layer.get_weights()
             weights = np.expand_dims(weights, 0)
             this_layer.set_weights((weights, bias))
@@ -563,6 +582,8 @@ class InitCellCNN(CellCNN):
                           activation=self.activation,
                           )
                 )
+        self.loss_functions = [tf.keras.losses.SparseCategoricalCrossentropy()]
+        self.output_layers = [Dense(self.classes, activation="softmax")]
 
     @staticmethod
     def load_from_dict(config, classes):
