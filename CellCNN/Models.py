@@ -90,9 +90,15 @@ class CellCNN(Model):
             by default 0.25
         """
         super(CellCNN, self).__init__()
-        self.my_input_shape = input_shape
-        self.classes = classes
-        self.conv = conv
+        self.my_input_shape = tuple(input_shape)
+        if type(classes) == int:
+            self.classes = tuple([classes])
+        else:
+            self.classes = tuple(classes)
+        if type(conv) == int:
+            self.conv = tuple([conv])
+        else:
+            self.conv = tuple(conv)
         self.k = k
         self.lr = lr
         self.activation = activation
@@ -189,7 +195,7 @@ class CellCNN(Model):
                     labels=None,
                     n_classes=10,
                     epochs=10,
-                    batch_size=256): 
+                    batch_size=256):
         """Initialize random weights with better than random values
 
         This just splits given data into random labels and tries to fit
@@ -205,7 +211,7 @@ class CellCNN(Model):
             To how many classes should/is the data (be) split, by default 10
         epochs : int, optional, by default 10
         batch_size : int, optional, by default 256
-        """        
+        """
         init_model = InitCellCNN.load_from_dict(self.get_config(), n_classes)
         data = data.reshape(data.shape[0]*data.shape[1], data.shape[2])
         if labels is None:
@@ -256,10 +262,12 @@ class CellCNN(Model):
         -------
         tensor
         """
-        mask = K.cast(K.not_equal(y_true, -1), K.floatx())
+        mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        return tf.losses.mse(y_true * mask, y_pred * mask)
+        y_true_masked = tf.ragged.boolean_mask(y_true, mask)
+        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask)
+        return tf.losses.mse(y_true_masked, y_pred_masked)
 
     @staticmethod
     def binary_masked_loss(y_true, y_pred):  # From original implementation
@@ -273,10 +281,12 @@ class CellCNN(Model):
         -------
         tensor
         """
-        mask = K.cast(K.not_equal(y_true, -1), K.floatx())
+        mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        return tf.keras.losses.binary_crossentropy(y_true * mask, y_pred * mask)
+        y_true_masked = tf.ragged.boolean_mask(y_true, mask)
+        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask)
+        return tf.keras.losses.binary_crossentropy(y_true_masked, y_pred_masked)
 
     @staticmethod
     # From original implementation
@@ -291,14 +301,21 @@ class CellCNN(Model):
         -------
         tensor
         """
-        mask = K.cast(K.not_equal(y_true, -1), K.floatx())
+        mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        return tf.keras.losses.sparse_categorical_crossentropy(y_true * mask, y_pred * mask)
+
+        y_true_masked = tf.ragged.boolean_mask(y_true, mask[:,0])
+        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask[:,0])
+        return tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked)
 
     @staticmethod
     def masked_accuracy(y_true, y_pred):  # From original implementation
-        """Calculate accuracy while ignoring -1s
+        """Calculate accuracy while ignoring -1s on binary classification problems
+
+        Note
+        ----
+        For binary or regression problems this metric doesn't make any sence...
 
         Parameters
         ----------
@@ -308,14 +325,24 @@ class CellCNN(Model):
         -------
         tensor
         """
-        mask = K.cast(K.not_equal(y_true, -1), K.floatx())
-        nb_mask = K.sum(K.cast(K.equal(y_true, -1), K.floatx()))
-        nb_unmask = K.sum(mask)
+        mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        ret = (K.sum(K.cast(K.equal(mask*y_true, K.round(mask*y_pred)),
-               K.floatx()))-nb_mask)/nb_unmask
-        return ret
+
+        y_true_masked = tf.ragged.boolean_mask(y_true, mask[:,0])
+        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask[:,0])
+        
+        y_pred_masked = tf.concat((y_pred_masked, 1-y_pred_masked), 1)
+
+        return tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(y_true_masked, y_pred_masked))
+        # mask = K.cast(K.not_equal(y_true, -1), K.floatx())
+        # nb_mask = K.sum(K.cast(K.equal(y_true, -1), K.floatx()))
+        # nb_unmask = K.sum(mask)
+        # y_true = K.cast(y_true, K.floatx())
+        # y_pred = K.cast(y_pred, K.floatx())
+        # ret = (K.sum(K.cast(K.equal(mask*y_true, K.round(mask*y_pred)),
+        #        K.floatx()))-nb_mask)/nb_unmask
+        # return ret
 
     def call(self, inputs):
         """Call method used by tf.Model methods
@@ -583,7 +610,7 @@ class InitCellCNN(CellCNN):
                           )
                 )
         self.loss_functions = [tf.keras.losses.SparseCategoricalCrossentropy()]
-        self.output_layers = [Dense(self.classes, activation="softmax")]
+        self.output_layers = [Dense(self.classes[0], activation="softmax")]
 
     @staticmethod
     def load_from_dict(config, classes):
