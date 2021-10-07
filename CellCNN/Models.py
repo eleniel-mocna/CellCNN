@@ -1,4 +1,5 @@
 import json
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
@@ -230,6 +231,62 @@ class CellCNN(Model):
             weights, bias = init_layer.get_weights()
             weights = np.expand_dims(weights, 0)
             this_layer.set_weights((weights, bias))
+
+    def train(self,
+              X_train, y_train,
+              X_test, y_test,
+              epochs=10,
+              batch_size=256,
+              callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)]):
+        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+        train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
+        val_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+        val_dataset = val_dataset.shuffle(buffer_size=1024).batch(batch_size)
+
+        train_acc_metric = keras.metrics.SparseCategoricalAccuracy()
+        val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
+
+        for epoch in range(epochs):
+            print("\nStart of epoch %d" % (epoch,))
+            start_time = time.time()
+
+            # Iterate over the batches of the dataset.
+            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
+                with tf.GradientTape() as tape:
+                    logits = self(x_batch_train, training=True)
+                    loss_value = self.loss_functions[0](y_batch_train, logits)
+                grads = tape.gradient(loss_value, self.trainable_weights)
+                self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
+                # Update training metric.
+                train_acc_metric.update_state(y_batch_train, logits)
+
+                # Log every 200 batches.
+                if step % 200 == 0:
+                    print(
+                        "Training loss (for one batch) at step %d: %.4f"
+                        % (step, float(loss_value))
+                    )
+                    print("Seen so far: %d samples" % ((step + 1) * batch_size))
+
+            # Display metrics at the end of each epoch.
+            train_acc = train_acc_metric.result()
+            print("Training acc over epoch: %.4f" % (float(train_acc),))
+
+            # Reset training metrics at the end of each epoch
+            train_acc_metric.reset_states()
+
+            # Run a validation loop at the end of each epoch.
+            for x_batch_val, y_batch_val in val_dataset:
+                val_logits = self(x_batch_val, training=False)
+                # Update val metrics
+                val_acc_metric.update_state(y_batch_val, val_logits)
+            val_acc = val_acc_metric.result()
+            val_acc_metric.reset_states()
+            print("Validation acc: %.4f" % (float(val_acc),))
+            print("Time taken: %.2fs" % (time.time() - start_time))
+                
+
 
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5):  # From original implementation
