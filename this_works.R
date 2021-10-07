@@ -102,6 +102,7 @@ train_enviroment <- function(env,
   dev.off()
   get_controls(env)
   save_results(env)
+  plot_correlation(env)
   #sink()
 }
 load_data <- function(env)
@@ -312,6 +313,31 @@ visualize_one <- function(env, filter)
   title(paste("FILTER", filter))
   
 }
+
+plot_correlation <- function(env)
+{
+  env$result_corr <- lapply(env$results, function(x){colSums(x!=0)/nrow(x)})
+  env$result_corr <- do.call(rbind, env$result_corr)
+  env$result_corr <- env$result_corr[,env$useful]
+  colnames(env$result_corr)<-paste(env$NAME, "F: ", env$useful)
+  rownames(env$result_corr)<-env$data_table[,"X"]
+  pdf(paste(env$NAME, "/correlation.pdf", sep=""))
+  par(mfrow = c(3, 3))
+  for (col in colnames(env$result_corr))
+  {
+    boxplot(env$result_corr[,col]~env$data_table[,"pT"], ylab=col, xlab="pT")
+    lm1 <- lm(env$result_corr[,col]~env$data_table[,"pos..LN.removed.LN"])
+    tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+    plot(env$result_corr[,col]~env$data_table[,"pos..LN.removed.LN"], ylab=col, xlab="pos",main=tt)
+    abline(lm1)
+    lm1 <- lm(env$result_corr[,col]~env$data_table[,"ki.67"])
+    tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+    plot(env$result_corr[,col]~env$data_table[,"ki.67"], ylab=col, xlab="ki.67",main=tt)
+    abline(lm1)
+  }
+  dev.off()
+}
+
 get_controls <- function(env)
 {
   env$control_files <- lapply(env$CONTROL_NAMES, read.FCS)
@@ -452,7 +478,7 @@ for (col in colnames(active)) {
 
 #pdf("../absolutely_all.pdf")
 par(mfrow = c(3, 3))
-for (col in colnames(active)) {
+for (col in active) {
   boxplot(active_w_labels[,col]~data_table[,"pT"], ylab=col, xlab="pT")
   boxplot(active_w_labels[,col]~data_table[,"pN"], ylab=col, xlab="pN")
   lm1 <- lm(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"])
@@ -486,4 +512,3 @@ abline(lm1)
 #run5("pos_M_nl_", list(4), list(128L,128L,128L,16L))
 run5("l1_0_ki67_S_nl_", list(5), list(16L))
 run5("l1_0_ki67_M_nl_", list(5), list(128L,128L,128L,16L))
-
