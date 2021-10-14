@@ -8,6 +8,7 @@ from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer, Dropout
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 from tensorflow.python.ops.math_ops import reduce_sum
+import pdb
 
 #TODO: Bugfix masking.
 
@@ -50,7 +51,7 @@ class CellCNN(Model):
                  k=25,
                  lr=0.01,
                  activation="relu",
-                 l1_weight=0.01,
+                 l1_weight=5e-20,
                  dropout=0.25):
         """Initialize CellCNN model.
 
@@ -238,13 +239,14 @@ class CellCNN(Model):
               epochs=10,
               batch_size=256,
               callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)]):
+        pdb.set_trace()
         train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
         train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
         val_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
         val_dataset = val_dataset.shuffle(buffer_size=1024).batch(batch_size)
 
-        train_acc_metric = keras.metrics.SparseCategoricalAccuracy()
-        val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
+        train_acc_metric = keras.metrics.BinaryAccuracy()
+        val_acc_metric = keras.metrics.BinaryAccuracy()
 
         for epoch in range(epochs):
             print("\nStart of epoch %d" % (epoch,))
@@ -254,9 +256,10 @@ class CellCNN(Model):
             for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
                 with tf.GradientTape() as tape:
                     logits = self(x_batch_train, training=True)
-                    loss_value = self.loss_functions[0](y_batch_train, logits)
-                grads = tape.gradient(loss_value, self.trainable_weights)
-                self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+                    for i in range(len(self.loss_functions)):
+                        loss_value += self.loss_functions[i](y_batch_train, logits[0])
+                    grads = tape.gradient(loss_value, self.trainable_weights)
+                    self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
                 # Update training metric.
                 train_acc_metric.update_state(y_batch_train, logits)
@@ -265,7 +268,7 @@ class CellCNN(Model):
                 if step % 200 == 0:
                     print(
                         "Training loss (for one batch) at step %d: %.4f"
-                        % (step, float(loss_value))
+                        % (step, float( tf.reduce_mean(loss_value)))
                     )
                     print("Seen so far: %d samples" % ((step + 1) * batch_size))
 
