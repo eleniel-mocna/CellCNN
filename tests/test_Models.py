@@ -16,6 +16,7 @@ class TestModel(unittest.TestCase):
     def setUp(self):
         dataset1 = CellCNN.Dataset(100000, center_density=0.1)
         dataset2 = CellCNN.Dataset(100000, center_density=0.9)
+        dataset1.data+=1.5
         self.inp = CellCNN.InputData(
             (dataset1, dataset2), multi_cell_size=MULTICELLSIZE)
         self.model = CellCNN.CellCNN((None, 1000, 2), conv=[

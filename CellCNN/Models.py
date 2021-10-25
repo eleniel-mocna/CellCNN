@@ -1,3 +1,4 @@
+import sys
 import json
 import time
 import numpy as np
@@ -18,7 +19,7 @@ class L1Layer(Layer):
     1L regularization to them.
     """
 
-    def __init__(self, loss_weight=0.01):
+    def __init__(self, loss_weight=1e-10):
         """Initialize the layer.
 
         Parameters
@@ -28,9 +29,13 @@ class L1Layer(Layer):
         """
         super(L1Layer, self).__init__()
         self.loss_weight = loss_weight
-
+    def build(self, input_shape):       
+        self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")
+        self.loss_vector = tf.math.exp(self.loss_vector)
+        self.loss_vector *= self.loss_weight
     def call(self, inputs):
-        self.add_loss(self.loss_weight * reduce_sum(inputs))
+        tf.print(tf.reduce_sum(self.loss_vector*tf.reduce_sum(inputs,(0,1))))
+        self.add_loss(tf.reduce_sum(self.loss_vector*tf.reduce_sum(inputs,(0,1))))
         return inputs
 
 
@@ -109,6 +114,8 @@ class CellCNN(Model):
         self._build_layers()
         self._compile()
         self.build(tuple(self.my_input_shape))
+        self.train_acc_metric = keras.metrics.BinaryAccuracy()
+        self.val_acc_metric = keras.metrics.BinaryAccuracy()
 
     def _build_layers(self):
         """Build layers for arguments given in __init__()
@@ -232,64 +239,19 @@ class CellCNN(Model):
             weights, bias = init_layer.get_weights()
             weights = np.expand_dims(weights, 0)
             this_layer.set_weights((weights, bias))
-
-    def train(self,
-              X_train, y_train,
-              X_test, y_test,
-              epochs=10,
-              batch_size=256,
-              callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)]):
-        pdb.set_trace()
-        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-        train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
-        val_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-        val_dataset = val_dataset.shuffle(buffer_size=1024).batch(batch_size)
-
-        train_acc_metric = keras.metrics.BinaryAccuracy()
-        val_acc_metric = keras.metrics.BinaryAccuracy()
-
-        for epoch in range(epochs):
-            print("\nStart of epoch %d" % (epoch,))
-            start_time = time.time()
-
-            # Iterate over the batches of the dataset.
-            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
-                with tf.GradientTape() as tape:
-                    logits = self(x_batch_train, training=True)
-                    for i in range(len(self.loss_functions)):
-                        loss_value += self.loss_functions[i](y_batch_train, logits[0])
-                    grads = tape.gradient(loss_value, self.trainable_weights)
-                    self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-
-                # Update training metric.
-                train_acc_metric.update_state(y_batch_train, logits)
-
-                # Log every 200 batches.
-                if step % 200 == 0:
-                    print(
-                        "Training loss (for one batch) at step %d: %.4f"
-                        % (step, float( tf.reduce_mean(loss_value)))
-                    )
-                    print("Seen so far: %d samples" % ((step + 1) * batch_size))
-
-            # Display metrics at the end of each epoch.
-            train_acc = train_acc_metric.result()
-            print("Training acc over epoch: %.4f" % (float(train_acc),))
-
-            # Reset training metrics at the end of each epoch
-            train_acc_metric.reset_states()
-
-            # Run a validation loop at the end of each epoch.
-            for x_batch_val, y_batch_val in val_dataset:
-                val_logits = self(x_batch_val, training=False)
-                # Update val metrics
-                val_acc_metric.update_state(y_batch_val, val_logits)
-            val_acc = val_acc_metric.result()
-            val_acc_metric.reset_states()
-            print("Validation acc: %.4f" % (float(val_acc),))
-            print("Time taken: %.2fs" % (time.time() - start_time))
-                
-
+    
+    @tf.function
+    def train_step(self, x,y):
+        with tf.GradientTape() as tape:
+            logits = self(x, training=True)
+            loss_value = 0
+            for i in range(len(self.loss_functions)):
+                loss_value += tf.reduce_mean(self.loss_functions[i](y, logits[0]))
+                grads = tape.gradient(loss_value, self.trainable_weights)
+                self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        # Update training metric.
+        self.train_acc_metric.update_state(y, logits)
+        return loss_value
 
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5):  # From original implementation
@@ -503,6 +465,27 @@ class CellCNN(Model):
                 "activation": self.activation,
                 "l1_weight": self.l1_weight,
                 "dropout": self.dropout}
+    @tf.function
+    def train_step(self, data):
+        # Unpack the data. Its structure depends on your model and
+        # on what you pass to `fit()`.
+        x, y = data
+
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)  # Forward pass
+            # Compute the loss value
+            # (the loss function is configured in `compile()`)
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+
+        # Compute gradients
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        # Update weights
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        # Update metrics (includes the metric that tracks the loss)
+        self.compiled_metrics.update_state(y, y_pred)
+        # Return a dict mapping metric names to current value
+        return {m.name: m.result() for m in self.metrics}
 
     def save(self, config_file, weights_file):
         """Save this model.
