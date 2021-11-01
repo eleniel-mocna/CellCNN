@@ -469,7 +469,6 @@ class CellCNN(Model):
                 "activation": self.activation,
                 "l1_weight": self.l1_weight,
                 "dropout": self.dropout}
-    @tf.function
     def train_step(self, data):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.
@@ -480,7 +479,6 @@ class CellCNN(Model):
             # Compute the loss value
             # (the loss function is configured in `compile()`)
             loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -489,7 +487,9 @@ class CellCNN(Model):
         # Update metrics (includes the metric that tracks the loss)
         self.compiled_metrics.update_state(y, y_pred)
         # Return a dict mapping metric names to current value
-        return {m.name: m.result() for m in self.metrics}
+        ret = {m.name: m.result() for m in self.metrics}
+        return ret
+        
 
     def save(self, config_file, weights_file):
         """Save this model.
