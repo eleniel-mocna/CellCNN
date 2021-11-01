@@ -16,10 +16,11 @@ class TestModel(unittest.TestCase):
     def setUp(self):
         dataset1 = CellCNN.Dataset(100000, center_density=0.1)
         dataset2 = CellCNN.Dataset(100000, center_density=0.9)
+        dataset2.data += 1.5
         self.inp = CellCNN.InputData(
             (dataset1, dataset2), multi_cell_size=MULTICELLSIZE)
         self.model = CellCNN.CellCNN((None, 1000, 2), conv=[
-                                     128,128, N_FILTERS], l1_weight=0)
+                                     128,128, N_FILTERS], l1_weight=1e-8)
     
     def test_init_random(self):
         old_weights = self.model.get_weights()
@@ -90,10 +91,6 @@ class TestModel(unittest.TestCase):
             y_true[:200], y_pred[:200])
         our_long = CellCNN.CellCNN.masked_accuracy(y_true, y_pred)
         tf_short = tf.keras.metrics.Accuracy()(y_true[:200], tf.round(y_pred[:200]))
-        print(our_short)
-        print(tf_short)
-        print(our_short == tf_short)
-        print(our_short == our_long)
         self.assertTrue(np.isclose(our_short, tf_short).all())
         self.assertTrue(np.isclose(our_short, our_long).all())
     
@@ -108,8 +105,6 @@ class TestModel(unittest.TestCase):
             y_true[:200], y_pred[:200])
         our_long = CellCNN.CellCNN.masked_accuracy(y_true, y_pred)
         tf_short = tf.keras.metrics.SparseCategoricalAccuracy()(y_true[:200], y_pred[:200])
-        print (our_short)
-        print (tf_short)
         self.assertTrue(our_short == tf_short)
         self.assertTrue(our_short == our_long)
 

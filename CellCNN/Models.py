@@ -27,8 +27,16 @@ class L1Layer(Layer):
         super(L1Layer, self).__init__()
         self.loss_weight = loss_weight
 
+    def build(self, input_shape):       
+        # self.loss_vector = tf.constant((-10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10), dtype="float32")    
+        self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")    
+        self.loss_vector = tf.math.exp(self.loss_vector)
+        self.loss_vector *= self.loss_weight
+
     def call(self, inputs):
-        self.add_loss(self.loss_weight * reduce_sum(inputs))
+        filter_responses = tf.reduce_sum(inputs,(0,1))
+        loss_results = self.loss_vector*filter_responses
+        self.add_loss(tf.reduce_sum(loss_results))
         return inputs
 
 
