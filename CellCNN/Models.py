@@ -32,10 +32,12 @@ class L1Layer(Layer):
 
     def build(self, input_shape):       
         # self.loss_vector = tf.constant((-10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10), dtype="float32")    
+        super(L1Layer, self).build(input_shape)
         self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")    
-        self.loss_vector = tf.math.exp(self.loss_vector)
+        self.loss_vector = 5**self.loss_vector
         self.loss_vector *= self.loss_weight
-
+    def compute_output_shape(self,input_shape):
+        return input_shape
     def call(self, inputs):
         filter_responses = tf.reduce_sum(inputs,(0,1))
         loss_results = self.loss_vector*filter_responses
@@ -244,18 +246,18 @@ class CellCNN(Model):
             weights = np.expand_dims(weights, 0)
             this_layer.set_weights((weights, bias))
     
-    @tf.function
-    def train_step(self, x,y):
-        with tf.GradientTape() as tape:
-            logits = self(x, training=True)
-            loss_value = 0
-            for i in range(len(self.loss_functions)):
-                loss_value += tf.reduce_mean(self.loss_functions[i](y, logits[0]))
-                grads = tape.gradient(loss_value, self.trainable_weights)
-                self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        # Update training metric.
-        self.train_acc_metric.update_state(y, logits)
-        return loss_value
+    # @tf.function
+    # def train_step(self, x,y):
+    #     with tf.GradientTape() as tape:
+    #         logits = self(x, training=True)
+    #         loss_value = 0
+    #         for i in range(len(self.loss_functions)):
+    #             loss_value += tf.reduce_mean(self.loss_functions[i](y, logits[0]))
+    #             grads = tape.gradient(loss_value, self.trainable_weights)
+    #             self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+    #     # Update training metric.
+    #     self.train_acc_metric.update_state(y, logits)
+    #     return loss_value
 
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5):  # From original implementation
@@ -469,12 +471,13 @@ class CellCNN(Model):
                 "activation": self.activation,
                 "l1_weight": self.l1_weight,
                 "dropout": self.dropout}
+    @tf.function
     def train_step(self, data):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.
         x, y = data
 
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
             y_pred = self(x, training=True)  # Forward pass
             # Compute the loss value
             # (the loss function is configured in `compile()`)
@@ -488,8 +491,41 @@ class CellCNN(Model):
         self.compiled_metrics.update_state(y, y_pred)
         # Return a dict mapping metric names to current value
         ret = {m.name: m.result() for m in self.metrics}
+        for i in range(len(self.classes)):
+            # tf.print(f"loss: {loss}")
+            # tf.print(f"y_pred: {y_pred}")
+            # tf.print(f"gradient: {tape.gradient(loss, y_pred[i])[0]}")
+            my_grad = tape.gradient(loss, y_pred[i])
+            if my_grad == None:
+                my_grad = 0
+            ret[f"gradient_{i}"] = my_grad
         return ret
-        
+    @tf.function
+    def test_step(self, data):
+        # Unpack the data
+        x, y = data
+        # Compute predictions
+        y_pred = self(x, training=False)
+        # Updates the metrics tracking the loss
+        with tf.GradientTape(persistent=True) as tape:
+            y_pred = self(x, training=False)
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        # Update the metrics.
+        self.compiled_metrics.update_state(y, y_pred)
+        # Return a dict mapping metric names to current value.
+        # Note that it will include the loss (tracked in self.metrics).
+        ret = {m.name: m.result() for m in self.metrics}
+        for i in range(len(self.classes)):
+            # tf.print(f"loss: {loss}")
+            # tf.print(f"y_pred: {y_pred}")
+            # tf.print(f"gradient: {tape.gradient(loss, y_pred[i])[0]}")
+            my_grad = tape.gradient(loss, y_pred[i])
+            if my_grad == None:
+                my_grad = 0
+            ret[f"gradient_{i}"] = my_grad
+        return ret
+
 
     def save(self, config_file, weights_file):
         """Save this model.
