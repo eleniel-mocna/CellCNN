@@ -477,11 +477,14 @@ class CellCNN(Model):
         # on what you pass to `fit()`.
         x, y = data
 
+        losses = np.zeros([len(self.loss),])
         with tf.GradientTape(persistent=True) as tape:
             y_pred = self(x, training=True)  # Forward pass
-            # Compute the loss value
-            # (the loss function is configured in `compile()`)
-            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+            for i in range(len(self.loss)):
+                loss_i = self.loss[i]
+                losses[i]+=(y[0][:,i],loss_i(y_pred[0][:,i]))
+            loss = np.sum(losses)
+            #loss =  self.compiled_loss(y, y_pred, regularization_losses=self.losses)
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
