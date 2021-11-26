@@ -227,6 +227,8 @@ def train_from_data_labels(data,
     model = CellCNN(input_shape=input_shape, conv=layers, classes=classes,
                     k=k, lr=lr, activation=activation, l1_weight=l1_weight, dropout=dropout)
     model.init_random(data, epochs=1)
+    assert not np.any(np.isnan(test_data)), "test data contains NaN values!"
+    assert not np.any(np.isnan(data)), "training data contains NaN values!"
     model.fit(data, labels, validation_data=(
         test_data, test_labels), epochs=epochs,
         # callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)],

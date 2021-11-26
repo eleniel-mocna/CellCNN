@@ -19,16 +19,21 @@ class L1Layer(Layer):
     1L regularization to them.
     """
 
-    def __init__(self, loss_weight=1e-10):
+    def __init__(self, loss_weight=1e-10, use_vector=False):
         """Initialize the layer.
 
         Parameters
         ----------
         loss_weight : float, optional
-            How strong should the regularization be, by default 0.01
+            How strong should the regularization be, by default 1e-10
+        use_vector : bool, optional
+            Should the l1 regu be applied to every filter with a different strength?
+            if True: l1 strength for i-th vector is:
+                loss_weight * (2**i)
         """
         super(L1Layer, self).__init__()
         self.loss_weight = loss_weight
+        self.use_vector = use_vector
 
     def build(self, input_shape):       
         # self.loss_vector = tf.constant((-10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10), dtype="float32")    
@@ -36,11 +41,15 @@ class L1Layer(Layer):
         self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")    
         self.loss_vector = 2**self.loss_vector
         self.loss_vector *= self.loss_weight
+        if self.use_vector:
+            self.loss_multiplier = self.loss_vector
+        else:
+            self.loss_multiplier = self.loss_weight
     def compute_output_shape(self,input_shape):
         return input_shape
     def call(self, inputs):
         filter_responses = tf.reduce_sum(inputs,(0,1))
-        loss_results = self.loss_vector*filter_responses
+        loss_results = self.loss_multiplier*filter_responses
         self.add_loss(tf.reduce_sum(loss_results))
         return inputs
 
@@ -63,6 +72,7 @@ class CellCNN(Model):
                  lr=0.01,
                  activation="relu",
                  l1_weight=5e-20,
+                 l1_vector_like = False,
                  dropout=0.25):
         """Initialize CellCNN model.
 
@@ -98,6 +108,10 @@ class CellCNN(Model):
             Weight of l1 regularization applied to the last
             filter outputs, 0 for no regularization,
             by default 0.01.
+        l1_vector_like : bool
+            Should the l1 regu be applied to every filter with a different strength?
+            if True: l1 strength for i-th vector is:
+                loss_weight * (2**i)
         dropout : float, optional
             Strength of dropout before every filter layer,
             by default 0.25
@@ -116,6 +130,7 @@ class CellCNN(Model):
         self.lr = lr
         self.activation = activation
         self.l1_weight = l1_weight
+        self.l1_vector_like = l1_vector_like
         self.dropout = dropout
         self._build_layers()
         self._compile()
@@ -143,11 +158,12 @@ class CellCNN(Model):
                 self.my_layers.append(
                     Conv1D(filters=self.conv[i],
                            kernel_size=1,
-                           activation=self.activation,
+                           activation=self.activation#,
+                        #    kernel_regularizer="l2"
                            )
                 )
 
-        self.my_layers.append(L1Layer(self.l1_weight))
+        self.my_layers.append(L1Layer(self.l1_weight, self.l1_vector_like))
         self.my_layers.append(Lambda(self._select_top,
                                      output_shape=(1,),
                                      name="pooling"
@@ -183,7 +199,7 @@ class CellCNN(Model):
             elif i > 2:
                 self.output_layers.append(
                     Dense(i, activation="softmax", name=layer_name))
-                #self.loss_functions.append(
+                # self.loss_functions.append(
                 #    tf.keras.losses.SparseCategoricalCrossentropy())
                 self.loss_functions.append(
                     CellCNN.sparse_categorical_masked_loss)
@@ -293,9 +309,12 @@ class CellCNN(Model):
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        y_true_masked = tf.ragged.boolean_mask(y_true, mask)
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask)
-        return tf.losses.mse(y_true_masked, y_pred_masked)
+        y_true_masked = y_true[mask]
+        y_pred_masked = y_pred[mask]
+        ret = tf.losses.mse(y_true_masked, y_pred_masked)
+        #Replace nan values with 0s
+        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
+        
 
     @staticmethod
     def binary_masked_loss(y_true, y_pred):  # From original implementation
@@ -312,9 +331,11 @@ class CellCNN(Model):
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        y_true_masked = tf.ragged.boolean_mask(y_true, mask)
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask)
-        return tf.keras.losses.binary_crossentropy(y_true_masked, y_pred_masked)
+        y_true_masked = y_true[mask]
+        y_pred_masked = y_pred[mask]
+        ret = tf.keras.losses.binary_crossentropy(y_true_masked, y_pred_masked)
+        #Replace nan values with 0s
+        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
 
     @staticmethod
     # From original implementation
@@ -332,10 +353,11 @@ class CellCNN(Model):
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-
-        y_true_masked = tf.ragged.boolean_mask(y_true, mask[:,0])
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask[:,0])
-        return tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked)
+        y_true_masked = y_true[mask]
+        y_pred_masked = y_pred[mask]
+        ret = tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked)
+        #Replace nan values with 0s
+        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
 
     @staticmethod
     def masked_accuracy(y_true, y_pred):  # From original implementation
@@ -484,7 +506,9 @@ class CellCNN(Model):
                 for i in range(len(self.loss)):
                     my_loss = self.loss[i]
                     my_loss_values.append(tf.math.reduce_sum(my_loss(y[i], y_pred[i])))
-                loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
+                # loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
+                loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+
             else:
                 loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
             regu_loss = tf.math.reduce_sum(self.losses)
@@ -544,7 +568,8 @@ class CellCNN(Model):
                 for i in range(len(self.loss)):
                     my_loss = self.loss[i]
                     my_loss_values.append(tf.math.reduce_sum(my_loss(y[i], y_pred[i])))
-                loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
+                loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+                # loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
             else:
                 loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
             regu_loss = tf.math.reduce_sum(self.losses)
