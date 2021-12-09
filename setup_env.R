@@ -22,7 +22,9 @@ setup_env <- function(origin_folder){
   env$labels_file <- glue::glue("{origin_folder}/labels.tsv")
   env$channels_file <- glue::glue("{origin_folder}/channels.tsv")
   env$data_folder <- glue::glue("{origin_folder}/data/")
-  env$controls_file <- glue::glue("{origin_folder}/controls.tsv")
+  
+  # TODO: Don't use this \/, instead write analyse with env function
+  env$controls_file <- glue::glue("{origin_folder}/controls.tsv") 
   load_directors_into_env(env)
   load_data_into_env(env)
   return(env)
@@ -42,8 +44,8 @@ load_data_into_env <- function(env){
     fcs_files <- lapply(paths, read.FCS)
     return(lapply(fcs_files, get_values))
   }
-  fcs_paths <- glue::glue("{env$data_folder}{env$names}.fcs")
-  env$data <- paths_to_data(fcs_paths)
+  env$fcs_paths <- glue::glue("{env$data_folder}{env$names}.fcs")
+  env$data <- paths_to_data(env$fcs_paths)
   env$controls_data <- get_controls(env$controls_file, env$path)
 }
 
