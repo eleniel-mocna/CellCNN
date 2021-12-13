@@ -1,17 +1,23 @@
 # This file contains the script `save_analysis`,
 # it takes a trained enviroment as an input and saves the results
 # using only the env$useful filters.
+
+#devtools::install_github("https://github.com/cipheLab/FlowCIPHE.git")
+library(FlowCIPHE)
+library(flowCore)
+
 save_analysis <- function(env){
-  save_res(env$NAME, env$original_env$fcs_paths, env$useful, env$results)
+  result_paths <- glue::glue("{env$dir_path}/{env$original_env$names}.fcs")
+  save_res(env$NAME, env$original_env$fcs_paths, result_paths, env$useful, env$results)
   # TODO: add all the nice graphs etc
 }
 
 
-save_res <- function(NAME, file_names, useful, results)
+save_res <- function(NAME, original_file_names, target_file_names, useful, results)
 {
-  # Rewrite this not to take the fcs files as an argument.
+  fcs=lapply(original_file_names, read.FCS)
   for (k in 1:length(fcs)) {
-    file_name <- paste(NAME, "/", file_names[[k]], sep="")
+    file_name <- target_file_names[k]
     print(paste("Processing file", file_name))
     
     for (i in useful){
@@ -21,4 +27,7 @@ save_res <- function(NAME, file_names, useful, results)
     }
     write.FCS(fcs[[k]], file_name)
   }
+}
+plot_filters <- function(env, only_useful = TRUE){
+  
 }

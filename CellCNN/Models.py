@@ -350,6 +350,7 @@ class CellCNN(Model):
         -------
         tensor
         """
+        return(tf.keras.losses.sparse_categorical_crossentropy(y_true,y_pred))
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())

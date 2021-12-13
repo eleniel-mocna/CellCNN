@@ -396,119 +396,119 @@ load_model <- function(NAME)
   CellCNN$CellCNN$load(paste(NAME, "/config.json", sep=""),
                        paste(NAME, "/weights.h5", sep=""))
 }
-
-transfer_fcs <- function(source, target)
-{
-  source_files <- paste(source, "/", list.files(source, ".fcs"), sep="")
-  source_fcs <- lapply(source_files,read.FCS)
-  target_files <- paste(target, "/", list.files(source, ".fcs"), sep="")
-  target_fcs <- lapply(target_files,read.FCS)
-  source_filter_columns <- grep(source, colnames(source_fcs[[1]]))
-  filter_names <- colnames(source_fcs[[1]])[source_filter_columns]
-  for (k in 1:length(source_fcs))
-  {
-    for (i in 1:length(source_filter_columns))
-    {
-      filter <- source_filter_columns[i]
-      filter_name <- filter_names[i]
-      filter_results <- source_fcs[[k]]@exprs[,filter]
-      target_fcs[[k]] <- enrich.FCS.CIPHE(target_fcs[[k]], filter_results, filter_name)
-    }
-    print(paste("Writing file", target_files[[k]]))
-    write.FCS(target_fcs[[k]], target_files[[k]])
-  }
-}
-labels <- list(2,4,5)
-layers <- list(16L)
-run5 <- function(name, labels, layers)
-{
-  for (i in 1:5) 
-  {
-    NAME <- paste(name,i, sep="")
-    sink(paste("logs/", NAME, ".txt", sep=""), append=TRUE, split = TRUE)
-    print(paste("#######Running", NAME))
-    tryCatch(do_analysis(NAME = NAME,
-                         labels = labels,
-                         layers = layers,
-                         l1_weight = 0),
-             error=function(e)print(paste("ERROR:", e)),
-             finally = {print(paste("ENDED", NAME))
-               sink()})
-  }
-}
-
-data_table <- read.table("../BCa_Souceklab/BCa_cohort_souceklab.txt", sep="\t", header = TRUE, dec = ",",na.strings = "x")
-names <- data_table[c(1:26),1]
-data_table <- data_table[c(1:26),]
-rownames(data_table) <- data_table[,"X"]
-data_table <- data_table[,2:10]
-data_table[data_table=="x"] <- NA
-file_names <- paste("BCa_souceklab_vaevictis/", names, "_LiveCellsvaevictis_b.fcs", sep="")
-#file_names <- paste("../BCa_Souceklab/l1_0_ki67_S_nl_2/", names, "_LiveCellsvaevictis_b.fcs", sep="")
-fcs_files <- lapply(file_names, read.FCS)
-columns <- grep(pattern = " F: ", colnames(exprs(fcs_files[[2]])))
-filter_values <- lapply(fcs_files, function(x)
-  {
-  res<-matrix(NA,nrow(x),length(columns))
-  ss<-which(columns<=ncol(exprs(x)))
-  
-  res[,ss]<-  exprs(x)[,columns[ss]]
-  res
-  })
-
-active <- lapply(filter_values, function(x){colSums(x!=0)/nrow(x)})
-active <- do.call(rbind, active)
-colnames(active)<-as.character(colnames(exprs(fcs_files[[3]]))[columns])
-active_w_labels <- cbind(active, data_table)
-rownames(active) <- names
-#pdf("../Stemp.pdf")
-par(mfrow = c(3, 3))
-for (col in colnames(active)) {
-  boxplot(active_w_labels[,col]~data_table[,"pT"], ylab=col, xlab="pT")
-  lm1 <- lm(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"])
-  tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-  plot(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"], ylab=col, xlab="pos",main=tt)
-  abline(lm1)
-  lm1 <- lm(active_w_labels[,col]~data_table[,"ki.67"])
-  tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-  plot(active_w_labels[,col]~data_table[,"ki.67"], ylab=col, xlab="ki.67",main=tt)
-  abline(lm1)
-}
-#dev.off()
-
-#pdf("../absolutely_all.pdf")
-par(mfrow = c(3, 3))
-for (col in active) {
-  boxplot(active_w_labels[,col]~data_table[,"pT"], ylab=col, xlab="pT")
-  boxplot(active_w_labels[,col]~data_table[,"pN"], ylab=col, xlab="pN")
-  lm1 <- lm(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"])
-  tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-  plot(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"], ylab=col, xlab="pos",main=tt)
-  abline(lm1)
-  lm1 <- lm(active_w_labels[,col]~data_table[,"ki.67"])
-  tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-  plot(active_w_labels[,col]~data_table[,"ki.67"], ylab=col, xlab="ki.67",main=tt)
-  abline(lm1)
-  boxplot(active_w_labels[,col]~data_table[,"BRCA"], ylab=col, xlab="BRCA")
-  boxplot(active_w_labels[,col]~data_table[,"neoadj..therapy"], ylab=col, xlab="neoadj..therapy")
-  lm1 <- lm(active_w_labels[,col]~data_table[,"age"])
-  tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-  plot(active_w_labels[,col]~data_table[,"age"], ylab=col, xlab="age",main=tt)
-  abline(lm1)
-  boxplot(active_w_labels[,col]~data_table[,"X1.year.relapse"], ylab=col, xlab="1 year relapse")
-  boxplot(active_w_labels[,col]~data_table[,"run"], ylab=col, xlab="run")
-}
-dev.off()
-boxplot(new_filter_values[,1]~new_data_table[,"pT"])
-lm1 <- lm(new_filter_values[,1]~new_data_table[,"ki.67"])
-tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
-plot(new_filter_values[,1]~new_data_table[,"ki.67"],main=tt)
-abline(lm1)
-#run5("3_S_nl_", list(2,4,5), list(16L))file_names <- list.files()
-#run5("3_M_nl_", list(2,4,5), list(128L,128L,128L,16L))
-#run5("pT_S_nl_", list(2), list(16L))
-#run5("pT_M_nl_", list(2), list(128L,128L,128L,16L))
-#run5("pos_S_nl_", list(4), list(16L))
-#run5("pos_M_nl_", list(4), list(128L,128L,128L,16L))
-run5("l1_0_ki67_S_nl_", list(5), list(16L))
-run5("l1_0_ki67_M_nl_", list(5), list(128L,128L,128L,16L))
+# 
+# transfer_fcs <- function(source, target)
+# {
+#   source_files <- paste(source, "/", list.files(source, ".fcs"), sep="")
+#   source_fcs <- lapply(source_files,read.FCS)
+#   target_files <- paste(target, "/", list.files(source, ".fcs"), sep="")
+#   target_fcs <- lapply(target_files,read.FCS)
+#   source_filter_columns <- grep(source, colnames(source_fcs[[1]]))
+#   filter_names <- colnames(source_fcs[[1]])[source_filter_columns]
+#   for (k in 1:length(source_fcs))
+#   {
+#     for (i in 1:length(source_filter_columns))
+#     {
+#       filter <- source_filter_columns[i]
+#       filter_name <- filter_names[i]
+#       filter_results <- source_fcs[[k]]@exprs[,filter]
+#       target_fcs[[k]] <- enrich.FCS.CIPHE(target_fcs[[k]], filter_results, filter_name)
+#     }
+#     print(paste("Writing file", target_files[[k]]))
+#     write.FCS(target_fcs[[k]], target_files[[k]])
+#   }
+# }
+# labels <- list(2,4,5)
+# layers <- list(16L)
+# run5 <- function(name, labels, layers)
+# {
+#   for (i in 1:5) 
+#   {
+#     NAME <- paste(name,i, sep="")
+#     sink(paste("logs/", NAME, ".txt", sep=""), append=TRUE, split = TRUE)
+#     print(paste("#######Running", NAME))
+#     tryCatch(do_analysis(NAME = NAME,
+#                          labels = labels,
+#                          layers = layers,
+#                          l1_weight = 0),
+#              error=function(e)print(paste("ERROR:", e)),
+#              finally = {print(paste("ENDED", NAME))
+#                sink()})
+#   }
+# }
+# 
+# data_table <- read.table("../BCa_Souceklab/BCa_cohort_souceklab.txt", sep="\t", header = TRUE, dec = ",",na.strings = "x")
+# names <- data_table[c(1:26),1]
+# data_table <- data_table[c(1:26),]
+# rownames(data_table) <- data_table[,"X"]
+# data_table <- data_table[,2:10]
+# data_table[data_table=="x"] <- NA
+# file_names <- paste("BCa_souceklab_vaevictis/", names, "_LiveCellsvaevictis_b.fcs", sep="")
+# #file_names <- paste("../BCa_Souceklab/l1_0_ki67_S_nl_2/", names, "_LiveCellsvaevictis_b.fcs", sep="")
+# fcs_files <- lapply(file_names, read.FCS)
+# columns <- grep(pattern = " F: ", colnames(exprs(fcs_files[[2]])))
+# filter_values <- lapply(fcs_files, function(x)
+#   {
+#   res<-matrix(NA,nrow(x),length(columns))
+#   ss<-which(columns<=ncol(exprs(x)))
+#   
+#   res[,ss]<-  exprs(x)[,columns[ss]]
+#   res
+#   })
+# 
+# active <- lapply(filter_values, function(x){colSums(x!=0)/nrow(x)})
+# active <- do.call(rbind, active)
+# colnames(active)<-as.character(colnames(exprs(fcs_files[[3]]))[columns])
+# active_w_labels <- cbind(active, data_table)
+# rownames(active) <- names
+# #pdf("../Stemp.pdf")
+# par(mfrow = c(3, 3))
+# for (col in colnames(active)) {
+#   boxplot(active_w_labels[,col]~data_table[,"pT"], ylab=col, xlab="pT")
+#   lm1 <- lm(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"])
+#   tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+#   plot(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"], ylab=col, xlab="pos",main=tt)
+#   abline(lm1)
+#   lm1 <- lm(active_w_labels[,col]~data_table[,"ki.67"])
+#   tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+#   plot(active_w_labels[,col]~data_table[,"ki.67"], ylab=col, xlab="ki.67",main=tt)
+#   abline(lm1)
+# }
+# #dev.off()
+# 
+# #pdf("../absolutely_all.pdf")
+# par(mfrow = c(3, 3))
+# for (col in active) {
+#   boxplot(active_w_labels[,col]~data_table[,"pT"], ylab=col, xlab="pT")
+#   boxplot(active_w_labels[,col]~data_table[,"pN"], ylab=col, xlab="pN")
+#   lm1 <- lm(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"])
+#   tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+#   plot(active_w_labels[,col]~data_table[,"pos..LN.removed.LN"], ylab=col, xlab="pos",main=tt)
+#   abline(lm1)
+#   lm1 <- lm(active_w_labels[,col]~data_table[,"ki.67"])
+#   tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+#   plot(active_w_labels[,col]~data_table[,"ki.67"], ylab=col, xlab="ki.67",main=tt)
+#   abline(lm1)
+#   boxplot(active_w_labels[,col]~data_table[,"BRCA"], ylab=col, xlab="BRCA")
+#   boxplot(active_w_labels[,col]~data_table[,"neoadj..therapy"], ylab=col, xlab="neoadj..therapy")
+#   lm1 <- lm(active_w_labels[,col]~data_table[,"age"])
+#   tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+#   plot(active_w_labels[,col]~data_table[,"age"], ylab=col, xlab="age",main=tt)
+#   abline(lm1)
+#   boxplot(active_w_labels[,col]~data_table[,"X1.year.relapse"], ylab=col, xlab="1 year relapse")
+#   boxplot(active_w_labels[,col]~data_table[,"run"], ylab=col, xlab="run")
+# }
+# dev.off()
+# boxplot(new_filter_values[,1]~new_data_table[,"pT"])
+# lm1 <- lm(new_filter_values[,1]~new_data_table[,"ki.67"])
+# tt<-paste("P=",round(summary(lm1)$coefficients[2,4], 5))
+# plot(new_filter_values[,1]~new_data_table[,"ki.67"],main=tt)
+# abline(lm1)
+# #run5("3_S_nl_", list(2,4,5), list(16L))file_names <- list.files()
+# #run5("3_M_nl_", list(2,4,5), list(128L,128L,128L,16L))
+# #run5("pT_S_nl_", list(2), list(16L))
+# #run5("pT_M_nl_", list(2), list(128L,128L,128L,16L))
+# #run5("pos_S_nl_", list(4), list(16L))
+# #run5("pos_M_nl_", list(4), list(128L,128L,128L,16L))
+# run5("l1_0_ki67_S_nl_", list(5), list(16L))
+# run5("l1_0_ki67_M_nl_", list(5), list(128L,128L,128L,16L))
