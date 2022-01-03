@@ -17,7 +17,7 @@ CellCnnData <- R6::R6Class(
                           path=NULL,
                           name=NULL){
       private$.data <- data
-      private$.labels <- labels
+      self$labels <- labels
       private$.label_description <- label_descr
       private$set_path(path)
       private$set_name(name)
@@ -27,7 +27,7 @@ CellCnnData <- R6::R6Class(
     validate = function() {
       # Check number of samples:
       stopifnot(self$n_samples==length(private$.data))
-      stopifnot(dim(private$.labels)[1]==length(private$.data))
+      stopifnot(dim(self$labels)[1]==length(private$.data))
       
       # Check data integrity
       for (dato in private$.data) {
@@ -45,20 +45,42 @@ CellCnnData <- R6::R6Class(
     
     #' Print basic info about this object.
     print = function() {
-      cat("<CellCnnData>:", private$.name, "@", private$.path, "\n")
+      cat("<", class(self)[1], "> :", private$.name, "@", private$.path, "\n")
       cat("- n_samples: ", self$n_samples, "\n")
       cat("- n_channels:", self$n_channels, "\n")
-      cat("- labels:", paste(colnames(private$.labels), collapse = ", "), "\n")
+      cat("- labels:", paste(colnames(self$labels), collapse = ", "), "\n")
       return(invisible(self))
     },
     
     #' Set all <NA> values to -1
     clean_labels = function(){
-      private$.labels[is.na(private$.labels)] <- -1
+      self$labels[self$labels==-1] <- NA
+      normal_data <- function(x)
+      {
+        x<-(x-mean(x, na.rm=TRUE))/sd(x, na.rm = TRUE)
+        x-min(x, na.rm=TRUE)
+      }
+      for (i in 1:nrow(private$.label_description)){
+        if ((private$.label_description)[i,"type"] == 0
+            && rownames(private$.label_description)[i] %in% colnames(self$labels)){
+          self$labels[,rownames(private$.label_description)[i]] = (
+            normal_data(self$labels[,rownames(private$.label_description)[i]])
+          )
+        }
+      }
+      self$labels[is.na(self$labels)] <- -1
+      private$.label_description <- (
+        private$.label_description[rownames(private$.label_description) 
+                                   %in% colnames(self$labels),, drop=FALSE])
+      self$labels <- self$labels[,colnames(self$labels)
+                                 %in% rownames(private$.label_description), drop=FALSE]
+      
+      
     },
     validate_labels = function(){
-      stopifnot(!unlist(lapply(private$.labels, is.character)))
-    }
+      stopifnot(!unlist(lapply(self$labels, is.character)))
+    },
+    labels = matrix()
   ),
   
   active = list(
@@ -69,6 +91,26 @@ CellCnnData <- R6::R6Class(
       }
       else {
         stop("Cannot overwrite `n_samples` attribute!")
+      }
+    },
+    
+    #' Path to the analysis folder
+    path = function(value) {
+      if (missing(value)){
+        return(private$.path)
+      }
+      else {
+        stop("Cannot overwrite `path` attribute!")
+      }
+    },
+    
+    #' Name of this analysis results (path+name = results folder)
+    name = function(value) {
+      if (missing(value)){
+        return(private$.name)
+      }
+      else {
+        stop("Cannot overwrite `name` attribute!")
       }
     },
     
@@ -92,16 +134,6 @@ CellCnnData <- R6::R6Class(
       }
     },
     
-    #' Getter for labels in this dataset
-    labels = function(value) {
-      if (missing(value)){
-        return(private$.labels)
-      }
-      else {
-        stop("Cannot overwrite labels! Create a new object instead!")
-      }
-    },
-    
     #' Getter for label description in this dataset
     label_description = function(value) {
       if (missing(value)){
@@ -115,7 +147,6 @@ CellCnnData <- R6::R6Class(
   
   private = list(
     .data = list(),
-    .labels = matrix(),
     .label_description = matrix(),
     .path = "",
     .name = "",
