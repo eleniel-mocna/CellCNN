@@ -1,4 +1,4 @@
-library(FlowCIPHE)
+
 CellCnnAnalysis <- R6::R6Class(
   "CellCnnAnalysis",
   inherit = CellCnnFolder,
@@ -81,14 +81,14 @@ CellCnnAnalysis <- R6::R6Class(
       file_names <- list.files(folder, pattern, full.names = FALSE)
       dir.create(output_folder)
       for (i in 1:length(paths)) {
-        fcs <- read.FCS(paths[i])
+        fcs <- flowCore::read.FCS(paths[i])
         result <- np$array(private$.sm(transform_function(fcs)))
         for (j in self$usefull){
-          fcs <- enrich.FCS.CIPHE(fcs,
+          fcs <- FlowCIPHE::enrich.FCS.CIPHE(fcs,
                                        result[,j],
                                        nw.names = list(paste(self$model_name, "F:", j)))
         }
-        write.FCS(fcs, paste0(normalizePath(output_folder),"/",file_names[i]))
+        flowCore::write.FCS(fcs, paste0(normalizePath(output_folder),"/",file_names[i]))
         if (keep_results){
           self$results[[i]] <- result[,self$usefull]
         }

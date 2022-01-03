@@ -22,7 +22,7 @@ CellCnnFolder <- R6::R6Class(
     },
     #' For given fcs object return data that it contains.
     get_dato = function(fcs_object){
-      return(exprs(fcs_object)[,private$.channels[(private$.channels[["use"]]==1),"name"]])
+      return(asinh(flowCore::exprs(fcs_object)[,private$.channels[(private$.channels[["use"]]==1),"name"]])/5)
       }
   ),
   private = list(
@@ -33,7 +33,7 @@ CellCnnFolder <- R6::R6Class(
     get_data = function(path){
       
       names <- paste0(path,"/data/",rownames(private$get_labels(path)),".fcs")
-      fcss <- lapply(names,read.FCS)
+      fcss <- lapply(names,flowCore::read.FCS)
       return(lapply(fcss, self$get_dato))
     },
     
