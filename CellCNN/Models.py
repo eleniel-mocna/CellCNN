@@ -262,19 +262,6 @@ class CellCNN(Model):
             weights = np.expand_dims(weights, 0)
             this_layer.set_weights((weights, bias))
     
-    # @tf.function
-    # def train_step(self, x,y):
-    #     with tf.GradientTape() as tape:
-    #         logits = self(x, training=True)
-    #         loss_value = 0
-    #         for i in range(len(self.loss_functions)):
-    #             loss_value += tf.reduce_mean(self.loss_functions[i](y, logits[0]))
-    #             grads = tape.gradient(loss_value, self.trainable_weights)
-    #             self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-    #     # Update training metric.
-    #     self.train_acc_metric.update_state(y, logits)
-    #     return loss_value
-
     @staticmethod
     def binary_accuracy(y_true, y_pred, threshold=0.5):  # From original implementation
         """Calculate accuracy while ignoring -1s
@@ -350,12 +337,17 @@ class CellCNN(Model):
         -------
         tensor
         """
-        return(tf.keras.losses.sparse_categorical_crossentropy(y_true,y_pred))
+        # return(tf.keras.losses.sparse_categorical_crossentropy(y_true,y_pred))
         mask = K.cast(K.not_equal(y_true, -1), "bool")
+        
+        # In graph code above function yields different dimensions than in eager.
+        # This squeeze ensures mask is compatible in both execution forms.
+        if len(mask.shape)>1:
+            mask = tf.squeeze(mask,1)
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
-        y_true_masked = y_true[mask]
-        y_pred_masked = y_pred[mask]
+        y_true_masked = tf.boolean_mask(y_true,mask)
+        y_pred_masked = tf.boolean_mask(y_pred,mask)
         ret = tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked)
         #Replace nan values with 0s
         return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
@@ -494,7 +486,8 @@ class CellCNN(Model):
                 "activation": self.activation,
                 "l1_weight": self.l1_weight,
                 "dropout": self.dropout}
-    # @tf.function
+    
+    # @tf.function TODO: Uncomment this
     def train_step(self, data):
         # Unpack the data. Its structure depends on your model and
         # on what you pass to `fit()`.

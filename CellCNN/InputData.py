@@ -72,7 +72,7 @@ class InputData:
         """
         retX = np.ndarray((amount, self.multi_cell_size, self.dimension))
         retY = np.ndarray((amount, self.labels[0].shape[0]))
-        indices = RNG.integers(0, self.length, size=(amount), dtype="int8")
+        indices = RNG.integers(0, self.length, size=(amount), dtype="int32")
         for i in range(amount):
             retX[i] = self.datasets[indices[i]].get_multi_cell_input(
                 self.multi_cell_size)

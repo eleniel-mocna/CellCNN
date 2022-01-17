@@ -1,4 +1,4 @@
-#' This is an example script that works if workdirectory is 
+#' This is an example script that works if workdirectory is
 #' "/home/rstudio/data/BCa_Souceklab/new_analysis"
 
 # This python stuff needs to be run here so it doesn't crash.
@@ -7,20 +7,30 @@ reticulate::use_condaenv("/home/rstudio/.local/share/r-miniconda/envs/r-reticula
 np <- reticulate::import("numpy")
 CellCNN <- reticulate::import("CellCNN")
 rscripts <- reticulate::import("CellCNN.rscripts")
+
+#TODO: Vykopírovat enriche a bude
 library(FlowCIPHE) # This library doesn't work unless imported via library
 source('~/data/git/CellCNN/CellCnnData.R')
 source('~/data/git/CellCNN/CellCnnFolder.R')
 source('~/data/git/CellCNN/CellCnnAnalysis.R')
+source('~/data/git/CellCNN/result_visualisation.R')
 
 # This will be moved into one file for sourcing, but reticulate and FlowCiphe
 # still crash time from time and this way they work the best...
 
 
 analysis <- CellCnnAnalysis$new(".")
-analysis$labels <- analysis$labels[,c(1,2,4)]
-analysis$do_analysis(layers = list(64,64,16), name = "testing")
+# analysis$labels <- analysis$labels[,c(1,2,4)]
+analysis$do_analysis(layers = list(128, 128, 64),
+                     name = "testing0110",
+                     l1_weight = 1e-6)
 
+analysis$do_analysis(layers = list(64),
+                     name = "testing0114",
+                     l1_weight = 1e-6,
+                     epochs = 5L,
+                     amount=10000L,
+                     test_amount = 2000L)
 analysis$default_cluster_filters(3)
-analysis$predict_fcs_folder("data", "testing/results", keep_results = TRUE)
-
+analysis$predict_fcs_folder("data", "testing0110/results", keep_results = TRUE)
 # results can now be accessed via analysis$results

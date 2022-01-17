@@ -14,8 +14,8 @@ CellCnnData <- R6::R6Class(
     initialize = function(data,
                           labels,
                           label_descr,
-                          path=NULL,
-                          name=NULL){
+                          path = NULL,
+                          name = NULL) {
       private$.data <- data
       self$labels <- labels
       private$.label_description <- label_descr
@@ -26,18 +26,18 @@ CellCnnData <- R6::R6Class(
     #' Validate if given data is correct
     validate = function() {
       # Check number of samples:
-      stopifnot(self$n_samples==length(private$.data))
-      stopifnot(dim(self$labels)[1]==length(private$.data))
+      stopifnot(self$n_samples == length(private$.data))
+      stopifnot(dim(self$labels)[1] == length(private$.data))
       
       # Check data integrity
       for (dato in private$.data) {
-        stopifnot(dim(dato)[2]==self$n_channels)
+        stopifnot(dim(dato)[2] == self$n_channels)
       }
       
       # Check label descriptions
       stopifnot(all(c("name", "type") %in% colnames(private$.label_description)))
       
-    
+      
       self$validate_labels()
       
       return(invisible(self))
@@ -45,7 +45,13 @@ CellCnnData <- R6::R6Class(
     
     #' Print basic info about this object.
     print = function() {
-      cat("<", class(self)[1], "> :", private$.name, "@", private$.path, "\n")
+      cat("<",
+          class(self)[1],
+          "> :",
+          private$.name,
+          "@",
+          private$.path,
+          "\n")
       cat("- n_samples: ", self$n_samples, "\n")
       cat("- n_channels:", self$n_channels, "\n")
       cat("- labels:", paste(colnames(self$labels), collapse = ", "), "\n")
@@ -53,31 +59,31 @@ CellCnnData <- R6::R6Class(
     },
     
     #' Set all <NA> values to -1
-    clean_labels = function(){
-      self$labels[self$labels==-1] <- NA
+    clean_labels = function() {
+      self$labels[self$labels == -1] <- NA
       normal_data <- function(x)
       {
-        x<-(x-mean(x, na.rm=TRUE))/sd(x, na.rm = TRUE)
-        x-min(x, na.rm=TRUE)
+        x <- (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+        x - min(x, na.rm = TRUE)
       }
-      for (i in 1:nrow(private$.label_description)){
-        if ((private$.label_description)[i,"type"] == 0
-            && rownames(private$.label_description)[i] %in% colnames(self$labels)){
-          self$labels[,rownames(private$.label_description)[i]] = (
-            normal_data(self$labels[,rownames(private$.label_description)[i]])
-          )
+      for (i in 1:nrow(private$.label_description)) {
+        if ((private$.label_description)[i, "type"] == 0
+            &&
+            rownames(private$.label_description)[i] %in% colnames(self$labels)) {
+          self$labels[, rownames(private$.label_description)[i]] = (normal_data(self$labels[, rownames(private$.label_description)[i]]))
         }
       }
       self$labels[is.na(self$labels)] <- -1
-      private$.label_description <- (
-        private$.label_description[rownames(private$.label_description) 
-                                   %in% colnames(self$labels),, drop=FALSE])
-      self$labels <- self$labels[,colnames(self$labels)
-                                 %in% rownames(private$.label_description), drop=FALSE]
+      private$.label_description <- (private$.label_description[rownames(private$.label_description)
+                                                                %in% colnames(self$labels), , drop =
+                                                                  FALSE])
+      self$labels <- self$labels[, colnames(self$labels)
+                                 %in% rownames(private$.label_description), drop =
+                                   FALSE]
       
       
     },
-    validate_labels = function(){
+    validate_labels = function() {
       stopifnot(!unlist(lapply(self$labels, is.character)))
     },
     labels = matrix()
@@ -86,7 +92,7 @@ CellCnnData <- R6::R6Class(
   active = list(
     #' Number of samples in this dataset
     n_samples = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(length(private$.data))
       }
       else {
@@ -96,7 +102,7 @@ CellCnnData <- R6::R6Class(
     
     #' Path to the analysis folder
     path = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(private$.path)
       }
       else {
@@ -106,7 +112,7 @@ CellCnnData <- R6::R6Class(
     
     #' Name of this analysis results (path+name = results folder)
     name = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(private$.name)
       }
       else {
@@ -116,7 +122,7 @@ CellCnnData <- R6::R6Class(
     
     #' Number of channels in this dataset
     n_channels = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(dim(private$.data[[1]])[2])
       }
       else {
@@ -126,7 +132,7 @@ CellCnnData <- R6::R6Class(
     
     #' Getter for data in this dataset
     data = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(private$.data)
       }
       else {
@@ -136,7 +142,7 @@ CellCnnData <- R6::R6Class(
     
     #' Getter for label description in this dataset
     label_description = function(value) {
-      if (missing(value)){
+      if (missing(value)) {
         return(private$.label_description)
       }
       else {
