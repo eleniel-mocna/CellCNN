@@ -146,7 +146,7 @@ CellCnnData <- R6::R6Class(
         return(private$.label_description)
       }
       else {
-        stop("Cannot overwrite labels! Create a new object instead!")
+        private$.label_description <- value
       }
     }
   ),

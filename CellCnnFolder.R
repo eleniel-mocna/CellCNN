@@ -27,7 +27,7 @@ CellCnnFolder <- R6::R6Class(
     get_dato = function(fcs_object,
                         compensate = NULL,
                         fun = function(x)
-                          asinh(x) / 5) {
+                          asinh(x/120)) {
       # TODO: Does this work?
       if (!is.null(compensate)) {
         fcs_object <-
@@ -51,9 +51,10 @@ CellCnnFolder <- R6::R6Class(
     
     #' For given path get labels as a matrix
     #' @param path path to the analysis folder containing labels.tsv
-    get_labels = function(path) {
+    get_labels = function(path,
+                          which_file = "labels.tsv") {
       return(read.table(
-        paste0(path, "/labels.tsv"),
+        paste0(path, "/", which_file),
         sep = "\t",
         header = TRUE,
         row.names = 1

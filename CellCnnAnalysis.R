@@ -18,6 +18,7 @@ CellCnnAnalysis <- R6::R6Class(
                            epochs = 30L,
                            l1_weight = 0,
                            patience = 5L,
+                           learning_rate = 1e-3,
                            clean_labels = TRUE,
                            cleanup = FALSE) {
       if (cleanup)
@@ -46,7 +47,8 @@ CellCnnAnalysis <- R6::R6Class(
         layers = layers,
         epochs = epochs,
         l1_weight = l1_weight,
-        patience = patience
+        patience = patience,
+        learning_rate = learning_rate
       )
       private$train_model()
       return(invisible(self))
@@ -60,13 +62,11 @@ CellCnnAnalysis <- R6::R6Class(
       return(invisible(self))
     },
     
-    load_model = function() {
-      if (trained) {
-        private$.model <- CellCNN$CellCNN$load()
-      }
-      else {
-        stop("This enviroment has not been trained, yet. :-(")
-      }
+    load_model = function(name) {
+      config_path <-paste0(self$path, "/", name, "/config.json")
+      weights_path <- paste0(self$path, "/", name, "/weights.h5")
+      private$.model <- CellCNN$CellCNN$load(config_path, weights_path)
+      private$.sm <- private$.model$get_single_cell_model()
       return(invisible(self))
     },
     
@@ -100,14 +100,21 @@ CellCnnAnalysis <- R6::R6Class(
     
     #' Return a matrix of row vector filters.
     filters_values = function() {
-      last_layer <-
-        private$.model$layers[[length(private$.trained_params$layers) * 2]]
+      last_layer_index <- 1L
+      
+      # Find the first l1_layer
+      while (!stringr::str_detect(private$.model$layers[[last_layer_index]]$name, "l1_layer_.*")) {
+        last_layer_index <- last_layer_index + 1
+      }
+      
+      # Go back to the last layer before the first l1_layer
+      last_layer <- private$.model$layers[[last_layer_index - 1]]
       return(np$array(last_layer$weights[[1]])[1, ,])
     },
     
     default_cluster_filters = function(k = 0) {
       f <- self$filters_values()
-      distances <- -(lsa::cosine(f) - 1) / 2
+      distances <- 1-abs(lsa::cosine(f))
       hcl <- hclust(as.dist(distances))
       if (k == 0) {
         res <- rep(0, 10)
@@ -132,6 +139,12 @@ CellCnnAnalysis <- R6::R6Class(
       }
       self$usefull <- unlist(representative)
       return(invisible(self))
+    },
+    plot_filters_dendro = function(){
+      f <- self$filters_values()
+      distances <- 1-abs(lsa::cosine(f))
+      hcl <- hclust(as.dist(distances))
+      plot(hcl)
     }
   ),
   active = list(
@@ -167,9 +180,10 @@ CellCnnAnalysis <- R6::R6Class(
         test_amount = private$.trained_params$test_amount,
         layers = private$.trained_params$layers,
         epochs = private$.trained_params$epochs,
-        classes = unlist(private$.label_description),
+        classes = as.list(unlist(private$.label_description[,"type"])),
         l1_weight = private$.trained_params$l1_weight,
-        patience = private$.trained_params$patience
+        patience = private$.trained_params$patience,
+        lr=private$.trained_params$learning_rate
       )
       private$.config_path <-
         paste0(private$.trained_params$path_to_analysis, "/config.json")

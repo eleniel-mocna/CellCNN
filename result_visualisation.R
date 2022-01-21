@@ -3,7 +3,8 @@ visualise_filters <- function(fcs_objects,
                               dim1 = "vaevictis_1",
                               dim2 = "vaevictis_2",
                               names = NULL,
-                              filters = NULL) {
+                              filters = NULL,
+                              trans_function=function(x){flowCore::exprs(x)}) {
   if (is.null(filters)) {
     filters <- analysis$usefull
   }
@@ -22,15 +23,22 @@ visualise_filters <- function(fcs_objects,
     }
   }
   par(mfrow = c(3, 3))
+  results <- list()
   for (j in 1:length(fcs_objects)) {
     fcs <- fcs_objects[[j]]
     this_dato <- analysis$get_dato(fcs)
-    result <- np$array(analysis$sm(this_dato))
-    for (i in filters) {
+    results[[j]] <- np$array(analysis$sm(this_dato))
+  }
+  for (i in filters) {
+    for (j in 1:length(fcs_objects)) {
+      result <- results[[j]]
+      fcs <- fcs_objects[[j]]
       color <- color_from_column(result[, i], maxs[i])
       o <- order(color)
-      scattermore::scattermoreplot(cbind(flowCore::exprs(fcs)[, dim1], flowCore::exprs(fcs)[, dim2])[o, ],
-                                   col = matrix(color[o], ncol = 1), xlab = dim1, ylab=dim2)
+      scattermore::scattermoreplot(cbind(
+            trans_function(fcs)[, dim1],
+            trans_function(fcs)[, dim2])[o, ],
+          col = matrix(color[o], ncol = 1), xlab = dim1, ylab=dim2)
       title(glue::glue("{names[[j]]}, filter {i}."))
     }
   }
@@ -95,7 +103,7 @@ plot_correlation <- function(fcs_objects,
   {
     for (i in 1:dim(label_descr)[1]) {
       this_label_name <- rownames(label_descr)[i]
-      this_label_descr <- label_descr[i, ]
+      this_label_descr <- label_descr[i, "type"]
       if (this_label_descr == 0) {
         lm1 <- lm(result_corr[, col] ~ labels[, this_label_name])
         tt <- paste("P=", round(summary(lm1)$coefficients[2, 4], 5))
