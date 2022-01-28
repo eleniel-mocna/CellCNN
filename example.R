@@ -15,22 +15,33 @@ source('~/data/git/CellCNN/CellCnnFolder.R')
 source('~/data/git/CellCNN/CellCnnAnalysis.R')
 source('~/data/git/CellCNN/result_visualisation.R')
 
-# This will be moved into one file for sourcing, but reticulate and FlowCiphe
-# still crash time from time and this way they work the best...
-
-
 analysis <- CellCnnAnalysis$new(".")
-# analysis$labels <- analysis$labels[,c(1,2,4)]
-analysis$do_analysis(layers = list(128, 128, 64),
-                     name = "testing0110",
-                     l1_weight = 1e-6)
-
-analysis$do_analysis(layers = list(64),
-                     name = "testing0114",
-                     l1_weight = 1e-6,
-                     epochs = 5L,
-                     amount=10000L,
-                     test_amount = 2000L)
-analysis$default_cluster_filters(3)
-analysis$predict_fcs_folder("data", "testing0110/results", keep_results = TRUE)
-# results can now be accessed via analysis$results
+fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
+fcss <- lapply(fcs_names, flowCore::read.FCS)
+for (layers in list(list(64), list(64,64,16),list(256,512,128,64))) {
+  for (l1_weight in c(1e-5, 1e-4,1e-3)) {
+    name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
+    print(name)
+    analysis$do_analysis(layers = layers,
+                         name = name,
+                         l1_weight = l1_weight,
+                         epochs = 10L,
+                         amount=5000L,
+                         test_amount = 1000L,
+                         learning_rate = 5e-3)
+    #analysis$load_model(name)
+    analysis$default_cluster_filters()
+    analysis$usefull
+    analysis$plot_filters_dendro()
+    pdf(paste0(name,"/correlation.pdf"))
+    par(mfrow=c(3,3))
+    plot_correlation(fcss, analysis, names = fcs_names)#, filters=1:64)
+    dev.off()
+    dir.create(paste0(name,"/data"))
+    analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
+    
+    pdf(paste0(name,"/cells.pdf"))
+    visualise_filters(fcss, analysis, "<FL 5 Log>", "<FL 8 Log>", fcs_names, trans_function = analysis$get_dato)
+    dev.off()
+  }
+}
