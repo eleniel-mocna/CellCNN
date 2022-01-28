@@ -1,6 +1,5 @@
 import sys
 import json
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow import keras
@@ -8,8 +7,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Conv1D, Dense, Lambda, Layer, Dropout
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
-from tensorflow.python.ops.math_ops import reduce_sum
-import pdb
 
 #TODO: Bugfix masking.
 
@@ -203,8 +200,16 @@ class CellCNN(Model):
                 #    tf.keras.losses.SparseCategoricalCrossentropy())
                 self.loss_functions.append(
                     CellCNN.sparse_categorical_masked_loss)
+            elif i < 1:
+                self.output_layers.append(
+                    Dense(-i, activation="softmax", name=layer_name))
+                print("W: Earth mover loss seems not to work. Be careful!", file=sys.stderr)
+                # self.loss_functions.append(
+                #    tf.keras.losses.SparseCategoricalCrossentropy())
+                self.loss_functions.append(
+                    CellCNN.earth_mover_loss)
             else:
-                raise ValueError("Invalid output layer specification given!")
+                raise ValueError(f"Invalid output layer specification given: {i}!")
             k += 1
 
     def _compile(self):
@@ -280,6 +285,31 @@ class CellCNN(Model):
             threshold = K.cast(threshold, y_pred.dtype)
             y_pred = K.cast(y_pred > threshold, y_pred.dtype)
         return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
+
+    @staticmethod
+    def earth_mover_loss(y_true, y_pred):
+        """Calculate the wasserstein metric, while ignoring -1s.
+
+        Parameters
+        ----------
+        y_true, y_pred : tensor
+
+        Returns
+        -------
+        tensor
+        """
+        mask = K.cast(K.not_equal(y_true, -1), "bool")
+        
+        # In graph code above function yields different dimensions than in eager.
+        # This squeeze ensures mask is compatible in both execution forms.
+        if len(mask.shape)>1:
+            mask = tf.squeeze(mask,1)
+        y_true_masked = tf.boolean_mask(y_true,mask)
+        y_pred_masked = tf.boolean_mask(y_pred,mask)
+        cdf_true = K.cumsum(tf.one_hot(tf.cast(y_true_masked, "int32"), y_pred.shape[1]), axis=-1)
+        cdf_pred = K.cumsum(y_pred_masked, axis=-1)
+        emd = K.sqrt(K.mean(K.square(cdf_true - cdf_pred), axis=-1))
+        return emd
 
     @staticmethod
     def mse_masked_loss(y_true, y_pred):
@@ -369,15 +399,19 @@ class CellCNN(Model):
         tensor
         """
         mask = K.cast(K.not_equal(y_true, -1), "bool")
+        if len(mask.shape)>1:
+            mask = tf.squeeze(mask,1)
         y_true = K.cast(y_true, K.floatx())
         y_pred = K.cast(y_pred, K.floatx())
+        y_true_masked = tf.boolean_mask(y_true,mask)
+        y_pred_masked = tf.boolean_mask(y_pred,mask)
+        if len(y_pred.shape)==1: # This is a binary accuracy
+            y_true_masked = tf.concat(y_true_masked, 1-y_true_masked)
+            y_pred_masked = tf.concat(y_pred_masked, 1-y_pred_masked)
+        if len(y_pred.shape)==2: # This is a categorical accuracy
+            tf.one_hot(tf.cast(y_true_masked, "int32"), y_pred_masked.shape[1])
 
-        y_true_masked = tf.ragged.boolean_mask(y_true, mask[:,0])
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, mask[:,0])
-        
-        y_pred_masked = tf.concat((y_pred_masked, 1-y_pred_masked), 1)
-
-        return tf.reduce_mean(tf.keras.metrics.sparse_categorical_accuracy(y_true_masked, y_pred_masked))
+        return tf.keras.metrics.sparse_categorical_accuracy(y_true_masked, y_pred_masked)
         # mask = K.cast(K.not_equal(y_true, -1), K.floatx())
         # nb_mask = K.sum(K.cast(K.equal(y_true, -1), K.floatx()))
         # nb_unmask = K.sum(mask)

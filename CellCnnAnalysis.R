@@ -1,3 +1,5 @@
+rscripts <- reticulate::import("CellCNN.rscripts")
+
 CellCnnAnalysis <- R6::R6Class(
   "CellCnnAnalysis",
   inherit = CellCnnFolder,
@@ -103,7 +105,7 @@ CellCnnAnalysis <- R6::R6Class(
       last_layer_index <- 1L
       
       # Find the first l1_layer
-      while (!stringr::str_detect(private$.model$layers[[last_layer_index]]$name, "l1_layer_.*")) {
+      while (!stringr::str_detect(private$.model$layers[[last_layer_index]]$name, "l1_layer.*")) {
         last_layer_index <- last_layer_index + 1
       }
       
