@@ -31,23 +31,26 @@ class L1Layer(Layer):
         super(L1Layer, self).__init__()
         self.loss_weight = loss_weight
         self.use_vector = use_vector
+        self.use = (loss_weight>0)
 
     def build(self, input_shape):       
         # self.loss_vector = tf.constant((-10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10), dtype="float32")    
-        super(L1Layer, self).build(input_shape)
-        self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")    
-        self.loss_vector = 2**self.loss_vector
-        self.loss_vector *= self.loss_weight
-        if self.use_vector:
-            self.loss_multiplier = self.loss_vector
-        else:
-            self.loss_multiplier = self.loss_weight
+        if (self.use):
+            super(L1Layer, self).build(input_shape)
+            self.loss_vector = tf.range(0,input_shape[-1], dtype="float32")    
+            self.loss_vector = 2**self.loss_vector
+            self.loss_vector *= self.loss_weight
+            if self.use_vector:
+                self.loss_multiplier = self.loss_vector
+            else:
+                self.loss_multiplier = self.loss_weight
     def compute_output_shape(self,input_shape):
         return input_shape
     def call(self, inputs):
-        filter_responses = tf.reduce_sum(inputs,(0,1))
-        loss_results = self.loss_multiplier*filter_responses
-        self.add_loss(tf.reduce_sum(loss_results))
+        if (self.use):
+            filter_responses = tf.reduce_sum(inputs,(0,1))
+            loss_results = self.loss_multiplier*filter_responses
+            self.add_loss(tf.reduce_sum(loss_results))
         return inputs
 
 
@@ -203,7 +206,6 @@ class CellCNN(Model):
             elif i < 1:
                 self.output_layers.append(
                     Dense(-i, activation="softmax", name=layer_name))
-                print("W: Earth mover loss seems not to work. Be careful!", file=sys.stderr)
                 # self.loss_functions.append(
                 #    tf.keras.losses.SparseCategoricalCrossentropy())
                 self.loss_functions.append(
@@ -279,12 +281,13 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of the binary accuracy (doesn't make sence for categorical).
         """
         if threshold != 0.5:
             threshold = K.cast(threshold, y_pred.dtype)
             y_pred = K.cast(y_pred > threshold, y_pred.dtype)
-        return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
+        return tf.reduce_mean(tf.cast(K.equal(y_true, K.round(y_pred)), "int32"))
 
     @staticmethod
     def earth_mover_loss(y_true, y_pred):
@@ -296,7 +299,8 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of the earth mover distance.
         """
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         
@@ -308,8 +312,9 @@ class CellCNN(Model):
         y_pred_masked = tf.boolean_mask(y_pred,mask)
         cdf_true = K.cumsum(tf.one_hot(tf.cast(y_true_masked, "int32"), y_pred.shape[1]), axis=-1)
         cdf_pred = K.cumsum(y_pred_masked, axis=-1)
-        emd = K.sqrt(K.mean(K.square(cdf_true - cdf_pred), axis=-1))
-        return emd
+        emd = K.mean(K.square(tf.squeeze(cdf_true,1) - cdf_pred), axis=-1)
+         # We multiply by a constant so that the value of EMD is proportional to the categorical loss
+        return 9.32*tf.reduce_mean(emd)
 
     @staticmethod
     def mse_masked_loss(y_true, y_pred):
@@ -321,7 +326,8 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of the mse.
         """
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
@@ -329,8 +335,7 @@ class CellCNN(Model):
         y_true_masked = y_true[mask]
         y_pred_masked = y_pred[mask]
         ret = tf.losses.mse(y_true_masked, y_pred_masked)
-        #Replace nan values with 0s
-        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
+        return tf.reduce_mean(ret)
         
 
     @staticmethod
@@ -343,7 +348,8 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of the binary crossentropy.
         """
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         y_true = K.cast(y_true, K.floatx())
@@ -351,8 +357,7 @@ class CellCNN(Model):
         y_true_masked = y_true[mask]
         y_pred_masked = y_pred[mask]
         ret = tf.keras.losses.binary_crossentropy(y_true_masked, y_pred_masked)
-        #Replace nan values with 0s
-        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
+        return tf.reduce_mean(ret)
 
     @staticmethod
     # From original implementation
@@ -365,7 +370,8 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of categorical crossentropy.
         """
         # return(tf.keras.losses.sparse_categorical_crossentropy(y_true,y_pred))
         mask = K.cast(K.not_equal(y_true, -1), "bool")
@@ -380,7 +386,7 @@ class CellCNN(Model):
         y_pred_masked = tf.boolean_mask(y_pred,mask)
         ret = tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked)
         #Replace nan values with 0s
-        return tf.where(tf.math.is_nan(ret), tf.zeros_like(ret), ret)
+        return tf.reduce_mean(ret)
 
     @staticmethod
     def masked_accuracy(y_true, y_pred):  # From original implementation
@@ -396,7 +402,8 @@ class CellCNN(Model):
 
         Returns
         -------
-        tensor
+        1 value tensor
+            The mean of categorical accuracy.
         """
         mask = K.cast(K.not_equal(y_true, -1), "bool")
         if len(mask.shape)>1:
@@ -411,17 +418,10 @@ class CellCNN(Model):
         if len(y_pred.shape)==2: # This is a categorical accuracy
             tf.one_hot(tf.cast(y_true_masked, "int32"), y_pred_masked.shape[1])
 
-        return tf.keras.metrics.sparse_categorical_accuracy(y_true_masked, y_pred_masked)
-        # mask = K.cast(K.not_equal(y_true, -1), K.floatx())
-        # nb_mask = K.sum(K.cast(K.equal(y_true, -1), K.floatx()))
-        # nb_unmask = K.sum(mask)
-        # y_true = K.cast(y_true, K.floatx())
-        # y_pred = K.cast(y_pred, K.floatx())
-        # ret = (K.sum(K.cast(K.equal(mask*y_true, K.round(mask*y_pred)),
-        #        K.floatx()))-nb_mask)/nb_unmask
-        # return ret
+        return tf.reduce_mean(
+            tf.keras.metrics.sparse_categorical_accuracy(y_true_masked, y_pred_masked))
 
-    def call(self, inputs):
+    def call(self, inputs, training=None, mask=None):
         """Call method used by tf.Model methods
 
         Parameters
@@ -521,10 +521,8 @@ class CellCNN(Model):
                 "l1_weight": self.l1_weight,
                 "dropout": self.dropout}
     
-    # @tf.function TODO: Uncomment this
+    @tf.function
     def train_step(self, data):
-        # Unpack the data. Its structure depends on your model and
-        # on what you pass to `fit()`.
         x, y = data
         my_loss_values = []
         with tf.GradientTape(persistent=True) as tape:
@@ -541,9 +539,6 @@ class CellCNN(Model):
                 loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
             regu_loss = tf.math.reduce_sum(self.losses)
             
-
-            # Update metrics (includes the metric that tracks the loss)
-
         # Compute gradients
         trainable_vars = self.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
@@ -581,6 +576,7 @@ class CellCNN(Model):
         my_grad = tf.math.reduce_mean(clean_grads)
         ret["regu_grad"] = my_grad
         return ret
+    
     @tf.function
     def test_step(self, data):
         # Unpack the data
