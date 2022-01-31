@@ -21,6 +21,7 @@ CellCnnAnalysis <- R6::R6Class(
                            l1_weight = 0,
                            patience = 5L,
                            learning_rate = 1e-3,
+                           k=25,
                            clean_labels = TRUE,
                            cleanup = FALSE) {
       if (cleanup)
@@ -50,7 +51,8 @@ CellCnnAnalysis <- R6::R6Class(
         epochs = epochs,
         l1_weight = l1_weight,
         patience = patience,
-        learning_rate = learning_rate
+        learning_rate = learning_rate,
+        k=k
       )
       private$train_model()
       return(invisible(self))
@@ -114,7 +116,7 @@ CellCnnAnalysis <- R6::R6Class(
       return(np$array(last_layer$weights[[1]])[1, ,])
     },
     
-    default_cluster_filters = function(k = 0) {
+    default_cluster_filters = function(k = 5) {
       f <- self$filters_values()
       distances <- 1-abs(lsa::cosine(f))
       hcl <- hclust(as.dist(distances))
@@ -185,7 +187,8 @@ CellCnnAnalysis <- R6::R6Class(
         classes = as.list(unlist(private$.label_description[,"type"])),
         l1_weight = private$.trained_params$l1_weight,
         patience = private$.trained_params$patience,
-        lr=private$.trained_params$learning_rate
+        lr=private$.trained_params$learning_rate,
+        k=private$.trained_params$k
       )
       private$.config_path <-
         paste0(private$.trained_params$path_to_analysis, "/config.json")

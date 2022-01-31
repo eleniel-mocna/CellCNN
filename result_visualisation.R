@@ -22,13 +22,16 @@ visualise_filters <- function(fcs_objects,
       maxs[i] = max(maxs[i], result[, i])
     }
   }
-  par(mfrow = c(3, 3))
   results <- list()
   for (j in 1:length(fcs_objects)) {
     fcs <- fcs_objects[[j]]
     this_dato <- analysis$get_dato(fcs)
     results[[j]] <- np$array(analysis$sm(this_dato))
   }
+  dim1_label = fcs_objects[[1]]@parameters@data[
+    fcs_objects[[1]]@parameters@data[,"name"]==dim1,]
+  dim2_label = fcs_objects[[1]]@parameters@data[
+    fcs_objects[[1]]@parameters@data[,"name"]==dim2,]
   for (i in filters) {
     for (j in 1:length(fcs_objects)) {
       result <- results[[j]]
@@ -38,7 +41,9 @@ visualise_filters <- function(fcs_objects,
       scattermore::scattermoreplot(cbind(
             trans_function(fcs)[, dim1],
             trans_function(fcs)[, dim2])[o, ],
-          col = matrix(color[o], ncol = 1), xlab = dim1, ylab=dim2)
+         col = matrix(color[o], ncol = 1),xlab = dim1_label, ylab=dim2_label)
+      # plot(p, xlab = dim1_label, ylab=dim2_label)
+      
       title(glue::glue("{names[[j]]}, filter {i}."))
     }
   }

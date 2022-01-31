@@ -18,30 +18,33 @@ source('~/data/git/CellCNN/result_visualisation.R')
 analysis <- CellCnnAnalysis$new(".")
 fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
 fcss <- lapply(fcs_names, flowCore::read.FCS)
-for (layers in list(list(64), list(64,64,16),list(256,512,128,64))) {
-  for (l1_weight in c(1e-5, 1e-4,1e-3)) {
-    name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
-    print(name)
-    analysis$do_analysis(layers = layers,
-                         name = name,
-                         l1_weight = l1_weight,
-                         epochs = 10L,
-                         amount=5000L,
-                         test_amount = 1000L,
-                         learning_rate = 5e-3)
-    #analysis$load_model(name)
-    analysis$default_cluster_filters()
-    analysis$usefull
-    analysis$plot_filters_dendro()
-    pdf(paste0(name,"/correlation.pdf"))
-    par(mfrow=c(3,3))
-    plot_correlation(fcss, analysis, names = fcs_names)#, filters=1:64)
-    dev.off()
-    dir.create(paste0(name,"/data"))
-    analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
-    
-    pdf(paste0(name,"/cells.pdf"))
-    visualise_filters(fcss, analysis, "<FL 5 Log>", "<FL 8 Log>", fcs_names, trans_function = analysis$get_dato)
-    dev.off()
-  }
-}
+layers <- list(128,64,16)
+l1_weight <- 0
+name <- (glue::glue("higherK-ITP+B_{paste0(layers, collapse='-')}_{l1_weight}"))
+print(name)
+analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
+analysis$do_analysis(layers = layers,
+                     name = name,
+                     l1_weight = l1_weight,
+                     epochs = 10L,
+                     amount=5000L,
+                     test_amount = 1000L,
+                     learning_rate = 5e-3,
+                     k=250L)
+
+#analysis$load_model(name)
+analysis$default_cluster_filters()
+analysis$usefull
+analysis$plot_filters_dendro()
+pdf(paste0(name,"/correlation.pdf"))
+par(mfrow=c(3,3))
+plot_correlation(fcss, analysis, names = fcs_names)#, filters=1:16)
+dev.off()
+dir.create(paste0(name,"/data"))
+analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
+
+pdf(paste0(name,"/cells.pdf"))
+par(mfrow = c(3, 3))
+visualise_filters(fcss[1:27], analysis, "<FL 5 Log>", "<FL 6 Log>", fcs_names,
+                  trans_function = analysis$get_dato)
+dev.off()

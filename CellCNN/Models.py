@@ -312,7 +312,9 @@ class CellCNN(Model):
         y_pred_masked = tf.boolean_mask(y_pred,mask)
         cdf_true = K.cumsum(tf.one_hot(tf.cast(y_true_masked, "int32"), y_pred.shape[1]), axis=-1)
         cdf_pred = K.cumsum(y_pred_masked, axis=-1)
-        emd = K.mean(K.square(tf.squeeze(cdf_true,1) - cdf_pred), axis=-1)
+        if (len(cdf_true.shape)>2):
+            cdf_true = tf.squeeze(cdf_true,1)
+        emd = K.mean(K.square(cdf_true - cdf_pred), axis=-1)
          # We multiply by a constant so that the value of EMD is proportional to the categorical loss
         return 9.32*tf.reduce_mean(emd)
 
@@ -525,92 +527,62 @@ class CellCNN(Model):
     def train_step(self, data):
         x, y = data
         my_loss_values = []
+        tape, y_pred, loss, regu_loss = self.get_gradientTape(x, y, my_loss_values)
+            
+        self.apply_gradients(tape, loss)
+
+        # Update weights
+        
+
+        ret = self.update_metrics(y, y_pred, my_loss_values, tape, loss, regu_loss)
+
+        return ret
+
+    def apply_gradients(self, tape, loss):
+        # Compute gradients
+        gradients = tape.gradient(loss, self.trainable_variables)
+        clipped_gradients = [(tf.clip_by_value(grad, -1e5, 1e5)) for grad in gradients]
+        self.optimizer.apply_gradients(zip(clipped_gradients, self.trainable_variables))
+
+    def get_gradientTape(self, x, y, my_loss_values, training=True):
         with tf.GradientTape(persistent=True) as tape:
             tape.watch(self.trainable_variables)
-            y_pred = self(x, training=True)  # Forward pass
+            y_pred = self(x, training=training)  # Forward pass
             if len(self.loss) > 1:
                 for i in range(len(self.loss)):
                     my_loss = self.loss[i]
                     my_loss_values.append(tf.math.reduce_sum(my_loss(y[i], y_pred[i])))
-                # loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
                 loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
 
             else:
                 loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+                my_loss_values.append(self.compiled_loss(y, y_pred))
             regu_loss = tf.math.reduce_sum(self.losses)
-            
-        # Compute gradients
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-        capped_gvs = [(tf.clip_by_value(grad, -1e5, 1e5)) for grad in gradients]
-        # Update weights
-        self.optimizer.apply_gradients(zip(capped_gvs, trainable_vars))
-
-        self.compiled_metrics.update_state(y, y_pred)
-        ret = {m.name: m.result() for m in self.metrics}
-        ret["loss"] = loss
-        ret["regu_loss"] = regu_loss
-        if my_loss_values:
-            for i in range(len(self.loss)):
-                grads = tape.gradient(my_loss_values[i],trainable_vars)
-                
-                # Remove Nones (in output layers not corresponding to this
-                # output.)
-                clean_grads = []
-                for grad in grads:
-                    if grad != None:
-                        clean_grads.append(tf.norm(grad))
-
-                # Calculate average gradient size, from core layers
-                # Last 2 gradients describe gradients to output layer's
-                # weights and bias.
-                my_grad = tf.math.reduce_mean(clean_grads[:-2]) 
-                if my_grad == None:
-                    my_grad = 0
-                ret[f"gradient_{i}"] = my_grad
-        grads = tape.gradient(regu_loss,trainable_vars)
-        clean_grads = []
-        for grad in grads:
-            if grad != None:
-                clean_grads.append(tf.norm(grad))
-        my_grad = tf.math.reduce_mean(clean_grads)
-        ret["regu_grad"] = my_grad
-        return ret
+        return tape,y_pred,loss,regu_loss
     
     @tf.function
     def test_step(self, data):
         # Unpack the data
         x, y = data
-        # Compute predictions
-        y_pred = self(x, training=False)
-        # Updates the metrics tracking the loss
         my_loss_values = []
-        with tf.GradientTape(persistent=True) as tape:
-            tape.watch(self.trainable_variables)
-            y_pred = self(x, training=True)  # Forward pass
-            if len(self.loss) > 1:
-                for i in range(len(self.loss)):
-                    my_loss = self.loss[i]
-                    my_loss_values.append(tf.math.reduce_sum(my_loss(y[i], y_pred[i])))
-                loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-                # loss = tf.math.reduce_sum(my_loss_values) + tf.math.reduce_sum(self.losses)
-            else:
-                loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-            regu_loss = tf.math.reduce_sum(self.losses)
 
-        self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        # Updates the metrics tracking the loss
+        tape, y_pred, loss, regu_loss = self.get_gradientTape(x, y, my_loss_values, training=False)
+
         # Update the metrics.
+        ret = self.update_metrics(y, y_pred, my_loss_values, tape, loss, regu_loss)
+        return ret
+
+    def update_metrics(self, y, y_pred, my_loss_values, tape, loss, regu_loss):
         self.compiled_metrics.update_state(y, y_pred)
         ret = {m.name: m.result() for m in self.metrics}
         ret["loss"] = loss
         ret["regu_loss"] = regu_loss
-        trainable_vars = self.trainable_variables
         if my_loss_values:
             for i in range(len(self.loss)):
-                grads = tape.gradient(my_loss_values[i],trainable_vars)
+                grads = tape.gradient(my_loss_values[i],self.trainable_variables)
                 
-                # Remove Nones (in output layers not corresponding to this
-                # output.)
+                # Remove Nones - layers not corresponding to this output.                
                 clean_grads = []
                 for grad in grads:
                     if grad != None:
@@ -623,7 +595,10 @@ class CellCNN(Model):
                 if my_grad == None:
                     my_grad = 0
                 ret[f"gradient_{i}"] = my_grad
-        grads = tape.gradient(regu_loss,trainable_vars)
+
+        # This is a list, where each element corresponds to 1 layer of
+        # trainable vars. If no gradient is detected None.
+        grads = tape.gradient(regu_loss,self.trainable_variables)
         clean_grads = []
         for grad in grads:
             if grad != None:

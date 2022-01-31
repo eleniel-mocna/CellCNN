@@ -231,7 +231,7 @@ def train_from_data_labels(data,
     assert not np.any(np.isnan(data)), "training data contains NaN values!"
     model.fit(data, labels, validation_data=(
         test_data, test_labels), epochs=epochs,
-        # callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)],
+        callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)],
         batch_size = 128)
     return model
 
