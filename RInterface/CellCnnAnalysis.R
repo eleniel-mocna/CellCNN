@@ -1,5 +1,6 @@
+#' @export
 rscripts <- reticulate::import("CellCNN.rscripts")
-
+source('/CellCNN/flowCIPHE_enrich.R')
 CellCnnAnalysis <- R6::R6Class(
   "CellCnnAnalysis",
   inherit = CellCnnFolder,
@@ -91,9 +92,9 @@ CellCnnAnalysis <- R6::R6Class(
         fcs <- flowCore::read.FCS(paths[i])
         result <- np$array(private$.sm(transform_function(fcs)))
         for (j in self$usefull) {
-          fcs <- FlowCIPHE::enrich.FCS.CIPHE(fcs,
-                                             result[, j],
-                                             nw.names = list(paste(self$model_name, "F:", j)))
+          fcs <- enrich.FCS.CIPHE(fcs,
+                                   result[, j],
+                                   nw.names = list(paste(self$model_name, "F:", j)))
         }
         flowCore::write.FCS(fcs, paste0(normalizePath(output_folder), "/", file_names[i]))
         if (keep_results) {

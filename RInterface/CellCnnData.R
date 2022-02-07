@@ -1,3 +1,4 @@
+#' @export
 CellCnnData <- R6::R6Class(
   "CellCnnData",
   public = list(

@@ -1,3 +1,5 @@
+#' Visualise filters
+#' @export
 visualise_filters <- function(fcs_objects,
                               analysis,
                               dim1 = "vaevictis_1",
@@ -62,7 +64,8 @@ color_from_column <- function(x, maxx) {
 color_from_number <- function(x) {
   colorspace::diverge_hsv(100)[round(x * 100)]
 }
-
+#' Plot correlation between filters and labels
+#' @export
 plot_correlation <- function(fcs_objects,
                              analysis,
                              labels = NULL,

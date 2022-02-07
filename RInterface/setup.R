@@ -1,0 +1,10 @@
+reticulate::use_condaenv("/home/rstudio/.local/share/r-miniconda/envs/r-reticulate/bin/python")
+np <- reticulate::import("numpy")
+CellCNN <- reticulate::import("CellCNN")
+rscripts <- reticulate::import("CellCNN.rscripts")
+
+source('/RInterface/flowCIPHE_enrich.R')
+source('/RInterface/CellCnnData.R')
+source('/RInterface/CellCnnFolder.R')
+source('/RInterface/CellCnnAnalysis.R')
+source('/RInterface/result_visualisation.R')

@@ -1,3 +1,4 @@
+#' @export
 CellCnnFolder <- R6::R6Class(
   "CellCnnFolder",
   inherit = CellCnnData,
@@ -45,7 +46,7 @@ CellCnnFolder <- R6::R6Class(
     get_data = function(path) {
       names <-
         paste0(path, "/data/", rownames(private$get_labels(path)), ".fcs")
-      fcss <- lapply(names, read.FCS) # TODO: read.FCS is from FlowCore
+      fcss <- lapply(names, flowCore::read.FCS)
       return(lapply(fcss, self$get_dato))
     },
     
