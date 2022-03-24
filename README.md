@@ -1,7 +1,7 @@
 # CellCNN
 
-CellCNN is a tool for sensitive detection of rare disease-associated cell 
-subsets via representation learning. 
+CellCNN is a tool for sensitive detection of rare disease-associated cell
+subsets via representation learning.
 
 ## Instalation
 
@@ -13,13 +13,16 @@ install the docker provided here **TODO**.
 ### Simple analysis
 
 The simplest way for analysis with this tool is using the CellCnnAnalysis R6
-class interface. It takes a path to an *analysis folder*, which contains the
-following items:
+class interface. It takes a path to an *analysis folder*, with the following structure:
 
-- data/
-- channels.tsv
-- labels.tsv
-- label_description.tsv
+- myFolder/
+  - data/
+    - first_file.fcs
+    - second_file.fcs
+    - ...
+  - channels.tsv
+  - labels.tsv
+  - label_description.tsv
 
 #### data folder
 
