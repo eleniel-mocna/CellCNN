@@ -1,5 +1,4 @@
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
+install.packages("BiocManager")
 BiocManager::install("flowCore")
 install.packages("reticulate")
 install.packages("glue")
