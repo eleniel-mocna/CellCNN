@@ -11,6 +11,7 @@ COPY Dockerfile /DockerBuildInfo
 COPY README.md /README.md
 COPY CellCNN /backend/CellCNN
 COPY setup.py /backend/setup.py
+COPY requirements.txt /backend/requirements.txt
 COPY RInterface /RInterface
 
 RUN apt-get update && \

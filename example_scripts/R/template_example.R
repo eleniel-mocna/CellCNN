@@ -7,20 +7,17 @@
     np <- reticulate::import("numpy")
     CellCNN <- reticulate::import("CellCNN")
     rscripts <- reticulate::import("CellCNN.rscripts")
-
-    #TODO: Vykopírovat enriche a bude
-    library(FlowCIPHE) # This library doesn't work unless imported via library
-    source('~/data/git/CellCNN/CellCnnData.R')
-    source('~/data/git/CellCNN/CellCnnFolder.R')
-    source('~/data/git/CellCNN/CellCnnAnalysis.R')
-    source('~/data/git/CellCNN/result_visualisation.R')
+    source('/RInterface/CellCnnData.R')
+    source('/RInterface/CellCnnFolder.R')
+    source('/RInterface/CellCnnAnalysis.R')
+    source('/RInterface/result_visualisation.R')
 }
 #####################################
 # Fill out the following variables: #
 #####################################
 
-path_to_analysis<-"<Enter your path here>"
-analysis <- CellCnnAnalysis$new("")
+path_to_analysis<-"test"
+analysis <- CellCnnAnalysis$new(".")
 layers <- list(128,64,16)
 l1_weight <- 0
 epochs = 10L
@@ -35,7 +32,7 @@ k=250L
 
 fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
 fcss <- lapply(fcs_names, flowCore::read.FCS)
-name <- (glue::glue("analysis_{paste0(layers, collapse='-')}_{l1_weight}"))
+name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
 print(name)
 analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
 
@@ -53,7 +50,7 @@ analysis$do_analysis(layers = layers,
 # analysis$load_model(name)
 
 # Picking the interesting filters
-analysis$default_cluster_filters()
+analysis$default_cluster_filters(5)
 analysis$usefull
 analysis$plot_filters_dendro()
 
