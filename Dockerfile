@@ -15,7 +15,7 @@ COPY requirements.txt /backend/requirements.txt
 COPY RInterface /RInterface
 
 RUN apt-get update && \
-    apt-get install zlib1g-dev && \
+    apt-get install -y zlib1g-dev && \
     apt-get clean
 
 # RUN Rscript /RInterface/install.R
@@ -24,9 +24,6 @@ RUN r -e "install.packages('BiocManager')"
 RUN r -e "BiocManager::install('flowCore')"
 RUN r -e "install.packages('reticulate')"
 RUN r -e "install.packages('glue')"
-RUN r -e "reticulate::install_miniconda()"
-RUN r -e "reticulate::py_install('tensorflow', pip=TRUE, pip_options='--ignore-installed certifi')"
-RUN r -e "reticulate::py_install('/backend', pip=TRUE)"
 RUN r -e "install.packages('R6')"
 RUN r -e "install.packages('stringr')"
 RUN r -e "install.packages('lsa')"

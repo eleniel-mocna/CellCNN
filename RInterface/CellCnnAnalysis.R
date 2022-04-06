@@ -1,6 +1,7 @@
 #' @export
-rscripts <- reticulate::import("CellCNN.rscripts")
-source("/home/rstudio/data/Samuel_workdir/git/CellCNN/RInterface/flowCIPHE_enrich.R")
+tryCatch(rscripts <- reticulate::import("CellCNN.rscripts"),
+         error=function(cond){rscripts <- reticulate::import("CellCNN.CellCNN.rscripts")})
+source("/RInterface/flowCIPHE_enrich.R")
 CellCnnAnalysis <- R6::R6Class(
   "CellCnnAnalysis",
   inherit = CellCnnFolder,

@@ -6,7 +6,8 @@
     reticulate::use_condaenv("/home/rstudio/.local/share/r-miniconda/envs/r-reticulate/bin/python")
     np <- reticulate::import("numpy")
     CellCNN <- reticulate::import("CellCNN")
-    rscripts <- reticulate::import("CellCNN.rscripts")
+    tryCatch(rscripts <- reticulate::import("CellCNN.rscripts"),
+             error=function(cond){rscripts <- reticulate::import("CellCNN.CellCNN.rscripts")})
     source('/RInterface/CellCnnData.R')
     source('/RInterface/CellCnnFolder.R')
     source('/RInterface/CellCnnAnalysis.R')
@@ -17,7 +18,7 @@
 #####################################
 
 path_to_analysis<-"test"
-analysis <- CellCnnAnalysis$new(".")
+analysis <- CellCnnAnalysis$new(".", read_csv=TRUE)
 layers <- list(128,64,16)
 l1_weight <- 0
 epochs = 10L

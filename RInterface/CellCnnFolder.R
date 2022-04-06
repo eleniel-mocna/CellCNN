@@ -9,7 +9,8 @@ CellCnnFolder <- R6::R6Class(
     #' @param get_data_function function replacing `get_data`, e.g. transformations
     initialize = function(path,
                           NAME = NULL,
-                          get_dato_function = NULL) {
+                          get_dato_function = NULL,
+                          read_csv=FALSE) {
       if (!is.null(get_dato_function)) {
         get_dato <- get_dato_function
       }
@@ -17,7 +18,7 @@ CellCnnFolder <- R6::R6Class(
       private$.channels <-
         read.table(paste0(path, "/channels.tsv"), sep= "\t", header = TRUE)
       super$initialize(
-        private$get_data(path),
+        private$get_data(path, read_csv),
         private$get_labels(path),
         private$get_label_descr(path),
         path,
@@ -43,10 +44,19 @@ CellCnnFolder <- R6::R6Class(
     #' sorted by the order of names in labels.tsv.
     #' @param path path to the analysis folder containing labels.tsv and
     #' data folder
-    get_data = function(path) {
-      names <-
-        paste0(path, "/data/", rownames(private$get_labels(path)), ".fcs")
-      fcss <- lapply(names, flowCore::read.FCS)
+    get_data = function(path,
+                        read_csv) {
+      if (read_csv) {
+        names <- paste0(path, "/data/", rownames(private$get_labels(path)), ".csv")
+        fcss<-lapply(names, function(x){
+          flowCore::flowFrame(as.matrix(read.csv(x)))
+        })
+      }
+      else{
+        names <-
+          paste0(path, "/data/", rownames(private$get_labels(path)), ".fcs")
+        fcss <- lapply(names, flowCore::read.FCS)
+      }
       return(lapply(fcss, self$get_dato))
     },
     
