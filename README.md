@@ -3,6 +3,20 @@
 CellCNN is a tool for sensitive detection of rare disease-associated cell
 subsets via representation learning.
 
+## Requirements
+
+This tool is developed mainly for a unix server. Docker should provide
+sufficient portability, but sometimes it does weird stuff (mainly on Win...)
+
+Also because this tool will run mostly on servers it might not be usable
+in low-memory enviroments. The available memory should be at least 2x the
+dataset size. I.e: for the 20GB dataset that is provided there should be
+at least 40GB of free memory for this tool.
+This tool has been tested on a computer with 64 GB of RAM and ran fine
+on the provided dataset.
+
+There are no more requirements that I am aware of as of today.
+
 ## Instalation
 
 This tool is provided via a docker with an rstudio interface. To run this tool,
@@ -24,6 +38,9 @@ docker run \
   -v <filesystem_mount_directory>:/home/rstudio/data \
   <name_of_the_image>
 ```
+
+Then you can connect to the Rstudio interface inside of this docker using your
+browser at: `localhost:<open_port>`.
 
 After the container has started there are a few steps that are needed for the
 reticulate R library that have to be taken manually.
