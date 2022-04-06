@@ -103,6 +103,12 @@ CellCnnAnalysis <- R6::R6Class(
         }
       }
     },
+    predict_one=function(dato){
+      return np$array(private$.sm(transform_function(dato)))
+    },
+    predict=function(data){
+      return lapply(data, predict_one)
+    }
     
     #' Return a matrix of row vector filters.
     filters_values = function() {
