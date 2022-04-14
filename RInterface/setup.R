@@ -4,9 +4,11 @@ reticulate::py_install('tensorflow', pip=TRUE, pip_options='--ignore-installed c
 reticulate::py_install('/backend', pip=TRUE)
 np <- reticulate::import("numpy")
 CellCNN <- reticulate::import("CellCNN")
+
+# For some ungodly reason this import works differently on Windows and
+# unix machines????? So... This solves it :-)
 tryCatch(rscripts <- reticulate::import("CellCNN.rscripts"),
          error=function(cond){rscripts <- reticulate::import("CellCNN.CellCNN.rscripts")})
-rscripts <- reticulate::import("CellCNN.CellCNN.rscripts")
 
 source('/RInterface/flowCIPHE_enrich.R')
 source('/RInterface/CellCnnData.R')

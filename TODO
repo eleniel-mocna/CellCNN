@@ -1,0 +1,6 @@
+# TODO
+
+- Check the CellCNN save/load functions and update them
+- Create R function for loading csv files into a list of fcs'
+- Something is broken in R/result_visualisation -> plot_correlation
+

@@ -108,7 +108,7 @@ CellCnnAnalysis <- R6::R6Class(
     },
     predict=function(data){
       return lapply(data, predict_one)
-    }
+    },
     
     #' Return a matrix of row vector filters.
     filters_values = function() {
@@ -198,6 +198,7 @@ CellCnnAnalysis <- R6::R6Class(
         lr=private$.trained_params$learning_rate,
         k=private$.trained_params$k
       )
+      dir.create(private$.trained_params$path_to_analysis, showWarnings = FALSE)
       private$.config_path <-
         paste0(private$.trained_params$path_to_analysis, "/config.json")
       private$.weights_path <-

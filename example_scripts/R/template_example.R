@@ -35,7 +35,7 @@ fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
 fcss <- lapply(fcs_names, flowCore::read.FCS)
 name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
 print(name)
-analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
+# analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
 
 #If you want to play with the labels, do it here.
 analysis$do_analysis(layers = layers,
