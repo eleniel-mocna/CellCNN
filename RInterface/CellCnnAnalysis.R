@@ -2,6 +2,7 @@
 tryCatch(rscripts <- reticulate::import("CellCNN.rscripts"),
          error=function(cond){rscripts <- reticulate::import("CellCNN.CellCNN.rscripts")})
 source("/RInterface/flowCIPHE_enrich.R")
+np <- reticulate::import("numpy")
 CellCnnAnalysis <- R6::R6Class(
   "CellCnnAnalysis",
   inherit = CellCnnFolder,
@@ -103,11 +104,36 @@ CellCnnAnalysis <- R6::R6Class(
         }
       }
     },
+    predict_csv_folder=function(folder,
+                                output_folder,
+                                pattern = "*.csv",
+                                transform_function = self$get_dato,
+                                keep_results = TRUE){
+      {
+        if (is.null(self$usefull)) {
+          self$usefull <-
+            1:unlist(tail(private$.trained_params$layers, n = 1))
+        }
+        self$results <- list()
+        paths <- list.files(folder, pattern, full.names = TRUE)
+        file_names <- list.files(folder, pattern, full.names = FALSE)
+        dir.create(output_folder)
+        for (i in 1:length(paths)) {
+          fcs <- flowCore::flowFrame(as.matrix(read.csv(paths[i], check.names = FALSE)))
+          result <- np$array(private$.sm(transform_function(fcs)))
+          
+          write.csv(result[,self$usefull],paste0(normalizePath(output_folder), "/", file_names[i]))
+          if (keep_results) {
+            self$results[[i]] <- result[, self$usefull]
+          }
+        }
+      }
+    },
     predict_one=function(dato){
-      return np$array(private$.sm(transform_function(dato)))
+      np$array(private$.sm(transform_function(dato)))
     },
     predict=function(data){
-      return lapply(data, predict_one)
+      lapply(data, predict_one)
     },
     
     #' Return a matrix of row vector filters.

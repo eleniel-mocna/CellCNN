@@ -18,7 +18,8 @@
 #####################################
 
 path_to_analysis<-"test"
-analysis <- CellCnnAnalysis$new(".", read_csv=TRUE)
+read_csv <- TRUE
+analysis <- CellCnnAnalysis$new(".", read_csv=read_csv)
 layers <- list(128,64,16)
 l1_weight <- 0
 epochs = 10L
@@ -31,8 +32,15 @@ k=250L
 # If nothing more is needed, just run the code until the end #
 ##############################################################
 
-fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
-fcss <- lapply(fcs_names, flowCore::read.FCS)
+if (read_csv){
+    fcs_names <- paste0("data/",rownames(analysis$labels),".csv")
+    fcss<-parallel::mclapply(fcs_names, function(x){
+        flowCore::flowFrame(as.matrix(read.csv(x, check.names = FALSE)))
+    })
+} else {
+    fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
+    fcss <- parallel::mclapply(fcs_names, flowCore::read.FCS)   
+}
 name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
 print(name)
 # analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
@@ -49,7 +57,6 @@ analysis$do_analysis(layers = layers,
 
 # If you just want to load a trained model instead:
 # analysis$load_model(name)
-
 # Picking the interesting filters
 analysis$default_cluster_filters(5)
 analysis$usefull
@@ -64,6 +71,7 @@ dev.off()
 # Exporting data into new fcs files
 dir.create(paste0(name,"/data"))
 analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
+analysis$predict_csv_folder("data", output_folder = paste0(name, "/data"))
 
 # Show filter responses based on other dimensions:
 pdf(paste0(name,"/cells.pdf"))
