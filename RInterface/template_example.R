@@ -57,6 +57,7 @@ analysis$do_analysis(layers = layers,
 
 # If you just want to load a trained model instead:
 # analysis$load_model(name)
+
 # Picking the interesting filters
 analysis$default_cluster_filters(5)
 analysis$usefull
@@ -70,7 +71,7 @@ dev.off()
 
 # Exporting data into new fcs files
 dir.create(paste0(name,"/data"))
-analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
+# analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
 analysis$predict_csv_folder("data", output_folder = paste0(name, "/data"))
 
 # Show filter responses based on other dimensions:
