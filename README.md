@@ -70,6 +70,11 @@ docker run \
 Then you can connect to the Rstudio interface inside of this docker using your
 browser at: `localhost:<open_port>`.
 
+To login into the rstudio interface use tho following credentials:
+
+- username: `rstudio`
+- password: `<rocker_password>`
+
 After the container has started there are a few steps that are needed for the
 reticulate R library that have to be taken manually.
 To finish the installation, run line-by-line the RInterface/setup.R script.

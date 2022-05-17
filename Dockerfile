@@ -13,6 +13,7 @@ COPY CellCNN /backend/CellCNN
 COPY setup.py /backend/setup.py
 COPY requirements.txt /backend/requirements.txt
 COPY RInterface /RInterface
+COPY example_scripts /example_scripts
 
 RUN apt-get update && \
     apt-get install -y zlib1g-dev && \

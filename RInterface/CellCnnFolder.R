@@ -48,8 +48,8 @@ CellCnnFolder <- R6::R6Class(
                         read_csv) {
       if (read_csv) {
         names <- paste0(path, "/data/", rownames(private$get_labels(path)), ".csv")
-        fcss<-lapply(names, function(x){
-          flowCore::flowFrame(as.matrix(read.csv(x)))
+        fcss<-parallel::mclapply(names, function(x){
+          flowCore::flowFrame(as.matrix(read.csv(x, check.names = FALSE)))
         })
       }
       else{
