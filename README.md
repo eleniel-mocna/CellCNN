@@ -3,7 +3,7 @@
 CellCNN is a tool for sensitive detection of rare disease-associated cell
 subsets via representation learning. This method is thoroughly described
 [here](https://www.nature.com/articles/ncomms14825) with a followup in [this
-paper](https://www.nature.com/articles/s41467-020-18197-y).
+paper](https://www.pnas.org/doi/10.1073/pnas.2003026117).
 
 ## Algorithm Description
 
