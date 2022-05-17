@@ -67,6 +67,19 @@ docker run \
   <name_of_the_image>
 ```
 
+E.g.:
+
+```(bash)
+docker run \
+  -e PASSWORD=password \
+  -p 8787:8787 \
+  --cpus=64 \
+  -m=200g -d \
+  --name CellCNN \
+  -v /home:/home/rstudio/data \
+  cellcnn
+```
+
 Then you can connect to the Rstudio interface inside of this docker using your
 browser at: `localhost:<open_port>`.
 
