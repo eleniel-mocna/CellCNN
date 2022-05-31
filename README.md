@@ -72,7 +72,10 @@ class interface. It takes a path to an *analysis folder*, with the following str
 
 For a detailed description of each file, see below.
 
-When you've prepared this folder, go through the template_example.R script
+If you want to run just a quick analysis with preset metaparameters, use the
+function `quick_run(path)`.
+If you want to have more control over the metaparameters and more,
+go through the template_example.R script,
 located in the example_scripts/R folder.
 
 #### data folder
