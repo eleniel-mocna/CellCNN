@@ -1,7 +1,35 @@
 # CellCNN
 
 CellCNN is a tool for sensitive detection of rare disease-associated cell
-subsets via representation learning.
+subsets via representation learning. This method is thoroughly described
+[here](https://www.nature.com/articles/ncomms14825) with a followup in [this
+paper](https://www.pnas.org/doi/10.1073/pnas.2003026117).
+
+## Algorithm Description
+
+This algorithm's main parts are training and evaluation. Firstly the
+NN is trained on multiple cell inputs with a fixed size with regards
+to the known labels and then all cells in a sample are evaluated based
+on the trained filters. These results are then used to classify the samples.
+
+### Training
+
+In the training fase, always N cells (and the labels) are taken from a sample
+to form a 'multi cell input'. This is done many times and then the resulting
+inputs are fed into a NN, whose first layers consist of Conv1D layers with
+the core dimension of 1. Effectively just being dense layers applied
+to matrices). To these results is applied RELU. These results are called filters.
+These filters are then pooled and classified by a linear classifier or
+linear regression for each label.
+
+### Evaluation
+
+After the network is trained, the weights of all layers in front of the filters
+are taken and transformed into a NN with a vector as input (This can be done
+because of the architecture of Conv1D layers with core dimension of 1). These
+then are used to evaluate the filter values for all cells in a sample.
+These filter values can then be used either for classification of samples
+or any other evaluation.
 
 ## Requirements
 
@@ -24,7 +52,7 @@ use the provided docker.
 
 First build the docker from the provided Dockerfile.
 
-```docker build -t <name_of_the_image>.```
+```docker build -t <name_of_the_image> .```
 
 This will take a few tenths of minutes. Then start the container using the following command:
 
@@ -37,6 +65,19 @@ docker run \
   --name <name_of_the_container> \
   -v <filesystem_mount_directory>:/home/rstudio/data \
   <name_of_the_image>
+```
+
+E.g.:
+
+```(bash)
+docker run \
+  -e PASSWORD=password \
+  -p 8787:8787 \
+  --cpus=64 \
+  -m=200g -d \
+  --name CellCNN \
+  -v /home:/home/rstudio/data \
+  cellcnn
 ```
 
 Then you can connect to the Rstudio interface inside of this docker using your
@@ -137,3 +178,7 @@ The type of a label is as follows:
 - 2 for binary classification
 - n>2 for n-nary classification
 - n<0 for (-n)-nary classification using the earth mover's distance
+
+## Sample Data
+
+Some sample data is available [here](https://cunicz-my.sharepoint.com/:u:/g/personal/73488560_cuni_cz/EfUUA4BZVvZIn2dTGx0q-O0ByZlLn8_tJzhA-85n3viBvQ?e=lBZNs6)
