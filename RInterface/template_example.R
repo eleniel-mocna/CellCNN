@@ -17,35 +17,25 @@
 # Fill out the following variables: #
 #####################################
 
-path_to_analysis<-"test"
-read_csv <- TRUE
-analysis <- CellCnnAnalysis$new(".", read_csv=read_csv)
-layers <- list(128,64,16)
+path_to_analysis<-"."
+read_csv <- FALSE # Is the data provided as a csv? (no: fcs)
+analysis <- CellCnnAnalysis$new(path_to_analysis, get_dato=function(x)CellCnnFolder$public_methods$get_dato(fun=function(x) asinh(x/150)))
+layers <- list(128)
 l1_weight <- 0
 epochs = 10L
-amount=5000L
+amount=50000L
 test_amount = 1000L
 learning_rate = 5e-3
 k=250L
+name <- (glue::glue("results_{paste0(layers, collapse='-')}_{l1_weight}"))
+print(name)
 
 ##############################################################
 # If nothing more is needed, just run the code until the end #
 ##############################################################
 
-if (read_csv){
-    fcs_names <- paste0("data/",rownames(analysis$labels),".csv")
-    fcss<-parallel::mclapply(fcs_names, function(x){
-        flowCore::flowFrame(as.matrix(read.csv(x, check.names = FALSE)))
-    })
-} else {
-    fcs_names <- paste0("data/",rownames(analysis$labels),".fcs")
-    fcss <- parallel::mclapply(fcs_names, flowCore::read.FCS)   
-}
-name <- (glue::glue("test_{paste0(layers, collapse='-')}_{l1_weight}"))
-print(name)
-# analysis$label_description<-analysis$label_description[c("ITP_like","Bronchiectasis"),]
-
 #If you want to play with the labels, do it here.
+
 analysis$do_analysis(layers = layers,
                      name = name,
                      l1_weight = l1_weight,
@@ -70,13 +60,19 @@ plot_correlation(fcss, analysis, names = fcs_names)
 dev.off()
 
 # Exporting data into new fcs files
-dir.create(paste0(name,"/data"))
-# analysis$predict_fcs_folder("data", output_folder = paste0(name, "/data"))
-analysis$predict_csv_folder("data", output_folder = paste0(name, "/data"))
+output_data_folder = paste0(path_to_analysis, "/", name, "/data")
+dir.create(output_data_folder)
+if (read_csv){
+    analysis$predict_csv_folder(path_to_analysis, "/data", output_folder = output_data_folder)
+} else {
+    analysis$predict_fcs_folder(path_to_analysis, "/data", output_folder = output_data_folder)
+}
+
 
 # Show filter responses based on other dimensions:
-pdf(paste0(name,"/cells.pdf"))
-par(mfrow = c(3, 3))
-visualise_filters(fcss[1:27], analysis, "<FL 5 Log>", "<FL 6 Log>", fcs_names,
-                  trans_function = analysis$get_dato)
-dev.off()
+
+# pdf(paste0(name,"/cells.pdf"))
+# par(mfrow = c(3, 3))
+# visualise_filters(fcss, analysis, "PacificBlue-A", "PE-Cy7-A", fcs_names,
+#                   trans_function = analysis$get_dato)
+# dev.off()

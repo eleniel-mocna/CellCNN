@@ -33,7 +33,7 @@ quick_run <- function(path,
     }
     
     layers <- list(128)
-    name <- (glue::glue("results_{paste0(layers, collapse='-')}_{l1_weight}"))
+    name <- (glue::glue("ordinal_results_{paste0(layers, collapse='-')}_{l1_weight}"))
     print(name)
 
     analysis$do_analysis(layers = layers,
@@ -65,7 +65,7 @@ quick_run <- function(path,
 
 
     layers <- list(128,64,32)
-    name <- (glue::glue("results_{paste0(layers, collapse='-')}_{l1_weight}"))
+    name <- (glue::glue("ordinal_results_{paste0(layers, collapse='-')}_{l1_weight}"))
     print(name)
 
     analysis$do_analysis(layers = layers,
